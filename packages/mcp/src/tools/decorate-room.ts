@@ -607,6 +607,12 @@ export async function decorateRoom(bridge: SceneOperations, args: DecorateRoomAr
         const frame = frameOf(sink)
         if (frame) floorDecor('trash-bin', frame.x + 0.5, frame.z, 0, 'bin beside the sink')
       }
+      if (depth !== 'light' && toilet) {
+        const frame = frameOf(toilet)
+        if (frame)
+          floorDecor('toilet-brush', frame.x - 0.35, frame.z + 0.1, 0, 'brush beside the toilet')
+        if (frame) floorDecor('laundry-bag', frame.x + 0.75, frame.z, 15, 'hamper by the wall')
+      }
       break
     }
     case 'office': {
@@ -656,6 +662,13 @@ export async function decorateRoom(bridge: SceneOperations, args: DecorateRoomAr
             'playful art on the wall',
           )
         floorDecor('toy', bounds.centerX + 0.4, bounds.centerZ, 30, 'toy on the floor')
+        floorDecor(
+          'skate',
+          bounds.centerX - 0.6,
+          bounds.centerZ + 0.5,
+          70,
+          'skateboard dropped by the bed',
+        )
       }
       break
     }

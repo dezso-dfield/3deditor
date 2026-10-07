@@ -650,7 +650,7 @@ describe('room tools', () => {
     const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0]!.text)
     const shower = parsed.itemIds
       .map((id: string) => bridge.getNode(id as AnyNodeId)!)
-      .find((n) => n.asset?.id === 'shower-square')
+      .find((n) => n.asset?.id === 'shower-angle')
     expect(shower).toBeTruthy()
     // Corner placement — not the old dead-centre of the room.
     const distFromCentre = Math.hypot(shower.position[0] - 1.2, shower.position[2] - 1.2)

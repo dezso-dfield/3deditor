@@ -319,8 +319,9 @@ function buildRoomPlacements(
       addBack('toilet', 0.55, alongLen * 0.25)
       addBack('bathroom-sink', 0.8, -alongLen * 0.2)
       if (area >= 6.5) addSide('bathtub', 0.85)
-      // Showers belong in a corner, never free-standing in the middle of the room.
-      else addSide('shower-square', 0.5, sideAlongLen * 0.28)
+      // Showers belong in a corner, never free-standing in the middle of the
+      // room — the quadrant tray hugs the corner the square one can't.
+      else addSide('shower-angle', 0.55, sideAlongLen * 0.28)
       break
     case 'living': {
       addBack('sofa', 0.9)
@@ -428,6 +429,10 @@ function buildRoomPlacements(
         rotationDeg: (Math.atan2(inX, inZ) * 180) / Math.PI,
       })
       if (area >= 8) addSide('easel', 0.7, sideAlongLen * 0.2)
+      // Toys live where a kid drops them: the scooter leans on a side wall,
+      // a hoop stands in the corner when the room can take it.
+      if (area >= 8) addSide('scooter', 0.4, -sideAlongLen * 0.3)
+      if (area >= 12) addSide('basket-hoop', 0.5, sideAlongLen * 0.32)
       if (area >= 10) addSide('closet', 0.6, -sideAlongLen * 0.22)
       break
     }
