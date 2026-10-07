@@ -33,6 +33,34 @@ export const getWallsTool = {
   input: levelTarget,
 }
 
+export const generateScheduleTool = {
+  name: 'generate_schedule',
+  title: 'Generate schedule',
+  description:
+    'Produce the documentation schedules a building model carries, like an Archline/CAD schedule: rooms (name, roomType, number, area, perimeter, ceiling height, finishes, door/window counts), doors (category, type, size, host wall), windows (type, size, sill height) and items (catalog id, category, containing room). One level or the whole model; read-only. Room metadata it prints comes from update_room.',
+  input: {
+    levelId: NodeId.optional().describe(
+      'Restrict the schedule to one level, by an id list_levels returned. Default: the whole model, every level.',
+    ),
+    kind: z
+      .enum(['rooms', 'doors', 'windows', 'items', 'all'])
+      .optional()
+      .describe('Which schedule table to produce. Default: all.'),
+  },
+}
+
+export const materialsTakeoffTool = {
+  name: 'materials_takeoff',
+  title: 'Materials takeoff',
+  description:
+    'Quantity takeoff for the model, per level and in total: floor/slab areas and volumes, wall length and gross/net wall area (openings deducted, resolved wall heights), roof footprint, door/window counts by category and type, furniture counts by catalog category, and the list of finishes/material presets in use. Read-only; the basis for estimates and comparisons.',
+  input: {
+    levelId: NodeId.optional().describe(
+      'Restrict the takeoff to one level, by an id list_levels returned. Default: the whole model.',
+    ),
+  },
+}
+
 export const getZonesTool = {
   name: 'get_zones',
   title: 'Get zones',
