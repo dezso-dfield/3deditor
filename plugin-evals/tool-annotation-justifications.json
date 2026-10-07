@@ -709,6 +709,19 @@
       }
     },
     {
+      "name": "orient_item",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "justifications": {
+        "readOnlyHint": "It rewrites an item's rotation so its front aims at a point, a node, or away from one, changing the scene.",
+        "destructiveHint": "It updates an existing node's rotation; redoing the call overwrites the previous facing rather than adding a resource.",
+        "openWorldHint": "It operates only on nodes already inside the connected Pascal service and does not access the public internet."
+      }
+    },
+    {
       "name": "photo_to_scene",
       "annotations": {
         "readOnlyHint": false,
@@ -797,6 +810,19 @@
         "readOnlyHint": "It is not read-only because changes persisted scene metadata by replacing the existing scene name.",
         "destructiveHint": "Renaming replaces persisted scene metadata and can overwrite the prior name.",
         "openWorldHint": "It operates on the connected Pascal scene or project service without accessing the public internet."
+      }
+    },
+    {
+      "name": "review_layout",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "justifications": {
+        "readOnlyHint": "It audits a room or level's interior-design quality and reports issues without changing any node.",
+        "destructiveHint": "It does not create, update, replace, delete, load, or save Pascal scene or project state.",
+        "openWorldHint": "It operates only on data supplied by or already available inside the connected Pascal service and does not access the public internet."
       }
     },
     {
@@ -917,6 +943,19 @@
       }
     },
     {
+      "name": "update_room",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "justifications": {
+        "readOnlyHint": "It writes a room's name, roomType, number, ceiling height and finish notes onto the zone, changing the scene.",
+        "destructiveHint": "It updates an existing zone's documentation fields; redoing the call overwrites the previous values rather than adding a resource.",
+        "openWorldHint": "It operates only on nodes already inside the connected Pascal service and does not access the public internet."
+      }
+    },
+    {
       "name": "validate_design",
       "annotations": {
         "readOnlyHint": true,
@@ -953,6 +992,19 @@
         "readOnlyHint": "It computes verification results for the connected Pascal scene without repairing or changing it.",
         "destructiveHint": "It does not create, update, replace, delete, load, or save Pascal scene or project state.",
         "openWorldHint": "It operates only on data supplied by or already available inside the connected Pascal service and does not access the public internet."
+      }
+    },
+    {
+      "name": "walkthrough_to_room",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "justifications": {
+        "readOnlyHint": "It creates a room zone, its walls and furniture items from photo or video input, changing the scene.",
+        "destructiveHint": "It only creates new nodes: it does not update, replace or delete existing ones.",
+        "openWorldHint": "It accepts image URLs fetched from the public internet and defers analysis to the host's sampling capability."
       }
     }
   ]

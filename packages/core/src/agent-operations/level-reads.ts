@@ -5,7 +5,9 @@ import { DEFAULT_LEVEL_HEIGHT } from '../services/level-height'
 import { getWallPlaneTop } from '../services/storey'
 import { computeWallSlabSupport } from '../systems/slab/slab-support'
 import { resolveWallEffectiveHeight } from '../systems/wall/wall-top'
+import { itemWorldPlan, pointToSegmentDistance } from './item-facing'
 import { type LevelTargetInput, targetLevel } from './level-target'
+import { pointInPolygon, type Vec2 } from './plan-geometry'
 import { contentCounts, levelIdOf, levelRole, nodesOnLevel } from './scene-queries'
 import type { AgentOperation, SceneNodes } from './types'
 
@@ -68,6 +70,57 @@ function zoneSize(zone: ZoneNode) {
   }
 }
 
+function pointToPolygonDistance(point: Vec2, polygon: Vec2[]) {
+  let best = Number.POSITIVE_INFINITY
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i]!
+    const b = polygon[(i + 1) % polygon.length]!
+    best = Math.min(best, pointToSegmentDistance(point, a, b))
+  }
+  return best
+}
+
+function polygonPerimeter(polygon: Vec2[]) {
+  let total = 0
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i]!
+    const b = polygon[(i + 1) % polygon.length]!
+    total += Math.hypot(b[0] - a[0], b[1] - a[1])
+  }
+  return round2(total)
+}
+
+/**
+ * What a room holds: items whose centre sits inside the polygon, and doors /
+ * windows on the walls that bound it. A wall bounds the room when its midpoint
+ * is inside the polygon or sits within a wall-thickness of its outline.
+ */
+function zoneContents(nodes: SceneNodes, zone: ZoneNode) {
+  const levelId = levelIdOf(nodes, zone.id)
+  const polygon = zone.polygon as Vec2[]
+  const inside = (p: Vec2) => pointInPolygon(p, polygon, true)
+  const counts = { items: 0, doors: 0, windows: 0 }
+  for (const node of nodesOnLevel(nodes, levelId ?? '')) {
+    if (node.type === 'item') {
+      const frame = itemWorldPlan(nodes, node)
+      if (frame && inside([frame.x, frame.z])) counts.items++
+      continue
+    }
+    if (node.type !== 'wall' || node.children.length === 0) continue
+    const mid: Vec2 = [(node.start[0] + node.end[0]) / 2, (node.start[1] + node.end[1]) / 2]
+    const belongs =
+      inside(mid) ||
+      pointToPolygonDistance(mid, polygon) <= Math.max((node.thickness ?? 0.15) / 2 + 0.05, 0.3)
+    if (!belongs) continue
+    for (const childId of node.children) {
+      const child = nodes[childId]
+      if (child?.type === 'door') counts.doors++
+      else if (child?.type === 'window') counts.windows++
+    }
+  }
+  return counts
+}
+
 const zoneSummary = (nodes: SceneNodes, zone: ZoneNode) => ({
   id: zone.id,
   name: zone.name,
@@ -75,6 +128,12 @@ const zoneSummary = (nodes: SceneNodes, zone: ZoneNode) => ({
   polygon: zone.polygon,
   holes: zone.holes ?? [],
   ...zoneSize(zone),
+  perimeterMeters: polygonPerimeter(zone.polygon),
+  spaceRole: zone.spaceRole,
+  roomType: zone.occupancy || null,
+  roomNumber: zone.roomNumber || null,
+  ceilingHeight: zone.ceilingHeight,
+  contents: zoneContents(nodes, zone),
   floor_choices: roomFloorChoices(nodes, zone.id),
 })
 

@@ -36,6 +36,7 @@ const TOOL_POLICIES = [
       'measure_stair',
       'get_source',
       'list_collections',
+      'review_layout',
       'search_assets',
       'validate_design',
       'validate_scene',
@@ -50,6 +51,14 @@ const TOOL_POLICIES = [
       openWorldHint: true,
     },
     tools: ['analyze_floorplan_image', 'analyze_room_photo'],
+  },
+  {
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
+    tools: ['walkthrough_to_room'],
   },
   {
     annotations: {
@@ -109,10 +118,12 @@ const TOOL_POLICIES = [
       'delete_scene',
       'get_project_status',
       'load_scene',
+      'orient_item',
       'redo',
       'rename_scene',
       'save_scene',
       'undo',
+      'update_room',
     ],
   },
   {

@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { SceneOperations } from '../../operations'
 import { registerAnalyzeFloorplanImage } from './analyze-floorplan-image'
 import { registerAnalyzeRoomPhoto } from './analyze-room-photo'
+import { registerWalkthroughToRoom } from './walkthrough-to-room'
 
 /**
  * Register the vision-input tools that defer to the MCP host's sampling
@@ -12,6 +13,7 @@ import { registerAnalyzeRoomPhoto } from './analyze-room-photo'
 export function registerVisionTools(server: McpServer, operations: SceneOperations): void {
   registerAnalyzeFloorplanImage(server, operations)
   registerAnalyzeRoomPhoto(server, operations)
+  registerWalkthroughToRoom(server, operations)
 }
 
 export {
@@ -24,3 +26,8 @@ export {
   analyzeRoomPhotoOutput,
   registerAnalyzeRoomPhoto,
 } from './analyze-room-photo'
+export {
+  registerWalkthroughToRoom,
+  walkthroughToRoomInput,
+  walkthroughToRoomOutput,
+} from './walkthrough-to-room'

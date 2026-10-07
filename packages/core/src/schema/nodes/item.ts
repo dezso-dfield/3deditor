@@ -126,6 +126,27 @@ const assetSchema = z.object({
       height: z.number(), // where things rest
     })
     .optional(), // undefined = can't place things on it
+  // The item's front — the side a person interacts with (a chair's seat edge,
+  // a TV's screen, a wardrobe's doors). Convention: local +Z at yaw 0, matching
+  // the plan-symbol drawings (backs sit at -depth/2). Declared here only when
+  // an asset's model faces another axis so facing tools still aim correctly.
+  front: z.enum(['z+', 'z-', 'x+', 'x-']).optional(),
+  // Functional free space the item needs in plan, in meters: front = room in
+  // front of its face (a fridge's door swing, a toilet's approach), back =
+  // space behind it (a chair's pull-out), sides = each lateral side.
+  clearance: z
+    .object({
+      front: z.number().optional(),
+      back: z.number().optional(),
+      sides: z.number().optional(),
+    })
+    .optional(),
+  // What the item is for layout reasoning (seating faces a table, bed
+  // headboards hug a wall). Absent on older and authored assets — reviews
+  // then fall back to tag-based classification.
+  role: z
+    .enum(['seat', 'table', 'desk', 'bed', 'storage', 'fixture', 'appliance', 'media', 'decor'])
+    .optional(),
   interactive: interactiveSchema.optional(),
 })
 

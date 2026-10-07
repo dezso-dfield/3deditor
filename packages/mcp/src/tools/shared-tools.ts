@@ -15,6 +15,9 @@ import {
   getZonesTool,
   listLevelsTool,
   measureStairTool,
+  orientItemTool,
+  reviewLayoutTool,
+  updateRoomTool,
   verifySceneTool,
 } from '@pascal-app/core/agent-tools'
 import type { AnyNode, AnyNodeId } from '@pascal-app/core/schema'
@@ -168,6 +171,43 @@ const SHARED_TOOLS: SharedTool[] = [
     operation: AGENT_OPERATIONS.delete_node,
     annotations: DESTRUCTIVE_TOOL_ANNOTATIONS,
     outputSchema: { deletedIds: z.array(z.string()), ...liveSyncOutput },
+  },
+  {
+    contract: orientItemTool,
+    operation: AGENT_OPERATIONS.orient_item,
+    annotations: DESTRUCTIVE_TOOL_ANNOTATIONS,
+    outputSchema: {
+      itemId: z.string(),
+      yaw: z.number(),
+      facing: jsonObject,
+      front: z.string(),
+      ...liveSyncOutput,
+    },
+  },
+  {
+    contract: reviewLayoutTool,
+    operation: AGENT_OPERATIONS.review_layout,
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
+    outputSchema: {
+      ok: z.boolean(),
+      scope: jsonObject,
+      checksRun: z.array(z.string()),
+      issueCount: z.number(),
+      errorCount: z.number(),
+      issues: z.array(jsonObject),
+      stats: jsonObject,
+      skippedItems: z.array(jsonObject),
+    },
+  },
+  {
+    contract: updateRoomTool,
+    operation: AGENT_OPERATIONS.update_room,
+    annotations: DESTRUCTIVE_TOOL_ANNOTATIONS,
+    outputSchema: {
+      zoneId: z.string(),
+      updated: z.array(z.string()),
+      ...liveSyncOutput,
+    },
   },
 ]
 

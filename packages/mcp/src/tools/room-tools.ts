@@ -29,7 +29,7 @@ import { z } from 'zod'
 import type { SceneOperations } from '../operations'
 import { compileAndStore, type GeometryScriptHost, readScript } from './add-object'
 import { ADDITIVE_TOOL_ANNOTATIONS, READ_ONLY_TOOL_ANNOTATIONS } from './annotations'
-import { findCatalogItem, searchCatalogItems } from './asset-catalog'
+import { findCatalogItem, searchCatalogItems, toItemAsset } from './asset-catalog'
 import { ErrorCode, refusalResult, throwMcpError, toolError } from './errors'
 import {
   type LiveSyncStatus,
@@ -47,11 +47,39 @@ const ROOM_TYPES = [
   'bathroom',
   'living',
   'dining',
+  'office',
   'hallway',
   'entry',
   'laundry',
   'storage',
 ] as const
+
+// Room-use keywords → a furnish_room layout, used when roomType is omitted and
+// the zone carries a name or occupancy label instead (see update_room).
+const ROOM_TYPE_KEYWORDS: [RegExp, (typeof ROOM_TYPES)[number]][] = [
+  [/office|study|workspace|den|desk/i, 'office'],
+  [/bed|sleep|guest.?room|primary.?bedroom|master/i, 'bedroom'],
+  [/kitchen|cook|culinar/i, 'kitchen'],
+  [/bath|toilet|wc|lavator|shower|ensuite|powder/i, 'bathroom'],
+  [/living|lounge|family.?room|sitting|tv.?room|parlou?r/i, 'living'],
+  [/dining|eat.?in|breakfast/i, 'dining'],
+  [/hall|corridor|passage|landing/i, 'hallway'],
+  [/entry|foyer|mudroom|vestibule/i, 'entry'],
+  [/laundry|utility|wash/i, 'laundry'],
+  [/storage|store|closet|pantry|garage|shed|archive/i, 'storage'],
+]
+
+/** A zone's occupancy label, then its name, mapped to a furnish_room layout. */
+function inferRoomType(zone: AnyNode | null) {
+  if (zone?.type !== 'zone') return undefined
+  const occupancy = zone.occupancy?.trim()
+  const name = zone.name?.trim()
+  for (const [pattern, roomType] of ROOM_TYPE_KEYWORDS) {
+    if (occupancy && pattern.test(occupancy)) return roomType
+    if (name && pattern.test(name)) return roomType
+  }
+  return undefined
+}
 
 export const searchAssetsInput = {
   query: z.string().min(1),
@@ -126,7 +154,12 @@ export const addWindowOutput = {
 export const furnishRoomInput = {
   levelId: NodeIdSchema.optional(),
   zoneId: NodeIdSchema.optional(),
-  roomType: z.enum(ROOM_TYPES),
+  roomType: z
+    .enum(ROOM_TYPES)
+    .optional()
+    .describe(
+      'The furniture layout. Default: inferred from the zone\'s roomType (occupancy) or name — "office", "primary bedroom", "kitchen" … set it with update_room.',
+    ),
   polygon: z.array(Vec2Schema).min(3).optional(),
   doorWallIndex: z.number().int().min(0).optional(),
 }
@@ -213,21 +246,7 @@ function inferRoomGeometry(
 }
 
 function makeItemAsset(asset: AssetInput) {
-  return {
-    id: asset.id,
-    name: asset.name,
-    category: asset.category,
-    thumbnail: asset.thumbnail ?? '',
-    src: asset.src,
-    dimensions: asset.dimensions ?? [1, 1, 1],
-    offset: asset.offset ?? [0, 0, 0],
-    rotation: asset.rotation ?? [0, 0, 0],
-    scale: asset.scale ?? [1, 1, 1],
-    ...(asset.attachTo ? { attachTo: asset.attachTo } : {}),
-    ...(asset.tags ? { tags: asset.tags } : {}),
-    ...(asset.surface ? { surface: asset.surface } : {}),
-    ...(asset.interactive ? { interactive: asset.interactive } : {}),
-  }
+  return toItemAsset(asset)
 }
 
 function buildRoomPlacements(
@@ -336,6 +355,13 @@ function buildRoomPlacements(
       addBack('sofa', 0.9)
       addBack('coffee-table', 2.1)
       addSide('livingroom-chair', 0.85, -sideAlongLen * 0.18)
+      // A rug bridges sofa and coffee table; a lamp and a plant fill the back
+      // corners when the room can take them.
+      if (area >= 8) addBack('rectangular-carpet', 1.5)
+      if (area >= 9) {
+        addBack('floor-lamp', 0.4, -(alongLen / 2 - 0.55))
+        addBack('indoor-plant', 0.45, alongLen / 2 - 0.55)
+      }
       // TV faces the sofa from the door wall: use door-wall axes so smart
       // re-place nudges into the room (along wall / inward), not world X/Z.
       const doorIdx = doorWallIndex % n
@@ -356,6 +382,13 @@ function buildRoomPlacements(
       })
       break
     }
+    case 'office': {
+      // Desk's front faces the room; the chair sits before it, facing the desk.
+      addBack('desk', 0.55)
+      addBack('office-chair', 1.5, 0, facingRot + 180)
+      if (area >= 7) addSide('bookshelf', 0.35, sideAlongLen * 0.2)
+      break
+    }
     case 'dining':
       placements.push({ assetId: 'dining-table', x: bounds.centerX, z: bounds.centerZ })
       placements.push({ assetId: 'dining-chair', x: bounds.centerX, z: bounds.centerZ - 0.85 })
@@ -365,18 +398,21 @@ function buildRoomPlacements(
         z: bounds.centerZ + 0.85,
         rotationDeg: 180,
       })
-      if (Math.min(bounds.width, bounds.depth) >= 3) {
+      if (Math.min(bounds.width, bounds.depth) >= 3.4) {
+        // Table half-width (≈1.08) + chair half-depth + a serving gap: the
+        // side chairs stand clear of the table and face it, not away from it.
+        const sideChairX = 1.45
         placements.push({
           assetId: 'dining-chair',
-          x: bounds.centerX - 0.85,
+          x: bounds.centerX - sideChairX,
           z: bounds.centerZ,
-          rotationDeg: 270,
+          rotationDeg: 90,
         })
         placements.push({
           assetId: 'dining-chair',
-          x: bounds.centerX + 0.85,
+          x: bounds.centerX + sideChairX,
           z: bounds.centerZ,
-          rotationDeg: 90,
+          rotationDeg: 270,
         })
       }
       break
@@ -415,6 +451,9 @@ export function registerSearchAssets(server: McpServer): void {
         tags: item.tags ?? [],
         dimensions: item.dimensions,
         attachTo: item.attachTo ?? null,
+        role: item.role ?? null,
+        front: item.front ?? 'z+',
+        clearance: item.clearance ?? null,
       }))
       return textResult({ results, total: results.length })
     },
@@ -726,7 +765,7 @@ export function registerFurnishRoom(server: McpServer, bridge: SceneOperations):
     {
       title: 'Furnish room',
       description:
-        'Place furniture for a room type (levelId+polygon or zoneId). Skips or nudges poses that block door clear zones or overlap existing items (rotation-aware). Parent floor items to the level.',
+        "Place furniture for a room type (levelId+polygon or zoneId; roomType is inferred from the zone's name or roomType when omitted — see update_room). Skips or nudges poses that block door clear zones or overlap existing items (rotation-aware). Parent floor items to the level.",
       inputSchema: furnishRoomInput,
       outputSchema: furnishRoomOutput,
       annotations: ADDITIVE_TOOL_ANNOTATIONS,
@@ -734,9 +773,21 @@ export function registerFurnishRoom(server: McpServer, bridge: SceneOperations):
     async ({ levelId, zoneId, roomType, polygon, doorWallIndex }) => {
       const room = inferRoomGeometry(bridge, levelId, polygon as Vec2[] | undefined, zoneId)
       assertLevel(bridge, room.levelId)
+      const zone = zoneId ? bridge.getNode(zoneId as AnyNodeId) : null
+      const resolvedRoomType = roomType ?? inferRoomType(zone)
+      if (!resolvedRoomType) {
+        return toolError(
+          'furnish_room could not infer the room type: pass roomType, or name the room / set its roomType with update_room.',
+          { code: 'room_type_unknown' },
+        )
+      }
       const points = room.polygon
       const resolvedDoorWallIndex = doorWallIndex ?? 0
-      const { placements, bounds } = buildRoomPlacements(roomType, points, resolvedDoorWallIndex)
+      const { placements, bounds } = buildRoomPlacements(
+        resolvedRoomType,
+        points,
+        resolvedDoorWallIndex,
+      )
       const skipped: string[] = []
       const items: AnyNode[] = []
 
@@ -815,7 +866,7 @@ export function registerFurnishRoom(server: McpServer, bridge: SceneOperations):
             asset: makeItemAsset(asset),
             metadata: {
               mcpTool: 'furnish_room',
-              roomType,
+              roomType: resolvedRoomType,
               ...(x !== primary.x || z !== primary.z ? { placementAdjusted: true } : {}),
             },
           }),
@@ -836,6 +887,7 @@ export function registerFurnishRoom(server: McpServer, bridge: SceneOperations):
 
       return textResult({
         placed: items.length,
+        roomType: resolvedRoomType,
         itemIds: items.map((item) => item.id),
         skipped,
         ...persistencePayload(persistence),

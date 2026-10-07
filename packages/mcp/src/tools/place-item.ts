@@ -5,14 +5,20 @@ import {
   geometryUndersideAt,
   mountsFlush,
 } from '@pascal-app/core'
-import { projectWorldPointToWallLocalX, wallLength } from '@pascal-app/core/agent-operations'
+import {
+  itemFront,
+  projectWorldPointToWallLocalX,
+  resolveFacingYaw,
+  wallLength,
+} from '@pascal-app/core/agent-operations'
+import { facingSpecSchema } from '@pascal-app/core/agent-tools'
 import type { AnyNodeId } from '@pascal-app/core/schema'
 import { ItemNode } from '@pascal-app/core/schema'
 import { z } from 'zod'
 import type { SceneOperations } from '../operations'
 import { ADDITIVE_TOOL_ANNOTATIONS } from './annotations'
-import { findCatalogItem } from './asset-catalog'
-import { ErrorCode, throwMcpError } from './errors'
+import { findCatalogItem, toItemAsset } from './asset-catalog'
+import { ErrorCode, refusalResult, throwMcpError } from './errors'
 import { liveSyncOutput, persistencePayload, publishLiveSceneSnapshot } from './live-sync'
 import { measurement } from './measurement'
 import { NodeIdSchema, Vec3Schema } from './schemas'
@@ -22,6 +28,11 @@ export const placeItemInput = {
   targetNodeId: NodeIdSchema,
   position: Vec3Schema,
   rotation: measurement('angle', 'rad', { description: 'Y-axis rotation.' }).optional(),
+  facing: facingSpecSchema
+    .optional()
+    .describe(
+      'Where the placed item front aims, in level coordinates: {mode:"point",point:[x,z]}, {mode:"node",nodeId} or {mode:"away",nodeId}. Overrides rotation for floor and item-hosted placement; not supported on wall targets.',
+    ),
 }
 
 export const placeItemOutput = {
@@ -42,7 +53,7 @@ export function registerPlaceItem(server: McpServer, bridge: SceneOperations): v
       outputSchema: placeItemOutput,
       annotations: ADDITIVE_TOOL_ANNOTATIONS,
     },
-    async ({ catalogItemId, targetNodeId, position, rotation }) => {
+    async ({ catalogItemId, targetNodeId, position, rotation, facing }) => {
       const target = bridge.getNode(targetNodeId as AnyNodeId)
       if (!target) {
         throwMcpError(ErrorCode.InvalidParams, `Target node not found: ${targetNodeId}`)
@@ -101,6 +112,30 @@ export function registerPlaceItem(server: McpServer, bridge: SceneOperations): v
         })
       }
 
+      if (facing && targetType === 'wall') {
+        throwMcpError(
+          ErrorCode.InvalidRequest,
+          'facing is not supported on wall targets: a wall-mounted item faces out from the wall.',
+        )
+      }
+
+      // World-space yaw the caller asked for: an explicit rotation, or the
+      // item's front aimed at a facing target (level coordinates).
+      let worldYaw = rotation ?? 0
+      if (facing) {
+        try {
+          const { yaw } = resolveFacingYaw(
+            bridge.getNodes(),
+            [requestedPosition[0], requestedPosition[2]],
+            itemFront({ asset: baseAsset }),
+            facing,
+          )
+          worldYaw = yaw
+        } catch (error) {
+          return refusalResult(error)
+        }
+      }
+
       let restingOn: string | undefined
       let tilt: [number, number, number] | undefined
       if (target.type === 'item') {
@@ -113,11 +148,11 @@ export function registerPlaceItem(server: McpServer, bridge: SceneOperations): v
         }
         // Level coordinates → the host item's frame (translation + yaw).
         const [hx, hy, hz] = target.position
-        const yaw = target.rotation[1] ?? 0
+        const hostYaw = target.rotation[1] ?? 0
         const dx = requestedPosition[0] - hx
         const dz = requestedPosition[2] - hz
-        const lx = (Math.cos(yaw) * dx - Math.sin(yaw) * dz) / target.scale[0]
-        const lz = (Math.sin(yaw) * dx + Math.cos(yaw) * dz) / target.scale[2]
+        const lx = (Math.cos(hostYaw) * dx - Math.sin(hostYaw) * dz) / target.scale[0]
+        const lz = (Math.sin(hostYaw) * dx + Math.cos(hostYaw) * dz) / target.scale[2]
         const hanging = baseAsset.attachTo === 'ceiling' && target.source
         const surface = target.source
           ? hanging
@@ -139,14 +174,14 @@ export function registerPlaceItem(server: McpServer, bridge: SceneOperations): v
         // Its turn is relative to the host's.
         tilt =
           flush && surface && 'normal' in surface
-            ? flushMountRotation(surface.normal, (rotation ?? 0) - yaw)
-            : [0, (rotation ?? 0) - yaw, 0]
+            ? flushMountRotation(surface.normal, worldYaw - hostYaw)
+            : [0, worldYaw - hostYaw, 0]
       }
 
       const item = ItemNode.parse({
         position: itemPosition,
-        rotation: tilt ?? [0, rotation ?? 0, 0],
-        asset: baseAsset,
+        rotation: tilt ?? [0, worldYaw, 0],
+        asset: toItemAsset(baseAsset),
         ...wallExtras,
       })
       const id = bridge.createNode(item, parentId as AnyNodeId)
