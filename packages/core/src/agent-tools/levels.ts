@@ -102,6 +102,33 @@ export const updateRoomTool = {
   },
 }
 
+export const STYLE_PRESET_IDS = [
+  'modern',
+  'scandinavian',
+  'japandi',
+  'industrial',
+  'midcentury',
+  'cozy',
+] as const
+
+export const applyStyleTool = {
+  name: 'apply_style',
+  title: 'Apply interior style',
+  description:
+    "Paint a room into a named interior style: its floor, wall and ceiling finishes land as real surfaces (floor finish, interior wall paint, ceiling paint) plus the schedule finish notes — 'modern', 'scandinavian', 'japandi', 'industrial', 'midcentury' or 'cozy'. Optionally pick one wall as the style's accent colour. Furnish to taste with furnish_room, then decorate_room hangs art, pendant light and surface decor to match.",
+  input: {
+    zoneId: NodeId.describe('The room (zone) to style, by an id get_zones returned.'),
+    style: z
+      .enum(STYLE_PRESET_IDS)
+      .describe(
+        'The interior style to apply: modern, scandinavian, japandi, industrial, midcentury or cozy.',
+      ),
+    accentWallId: NodeId.optional().describe(
+      'Optional boundary wall of the room to paint with the style’s accent colour — e.g. the wall a bed or sofa backs onto.',
+    ),
+  },
+}
+
 export const duplicateLevelTool = {
   name: 'duplicate_level',
   title: 'Duplicate level',

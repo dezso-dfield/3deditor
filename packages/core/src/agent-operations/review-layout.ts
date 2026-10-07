@@ -32,6 +32,14 @@ export type LayoutIssue = {
   suggestion?: string
 }
 
+/** A styling idea, not a defect — missing decor the layout would take. */
+export type LayoutSuggestion = {
+  code: string
+  nodeIds: string[]
+  message: string
+  suggestion?: string
+}
+
 type ScopedItem = {
   node: Extract<AnyNode, { type: 'item' }>
   frame: { x: number; z: number; yaw: number }
@@ -51,6 +59,10 @@ const BACK_TO_WALL_DISTANCE = 0.4
 const WALKWAY_START = 0.7
 const WALKWAY_DEPTH = 1.2
 const WALKWAY_HALF_WIDTH = 0.45
+/** Wall-mounted decor counts as covering a focal item within this wall-local range (m). */
+const DECOR_WALL_RANGE = 1.3
+/** A table counts as lit when a ceiling light sits this close in plan (m). */
+const LIGHT_NEAR_TABLE = 1.5
 
 type WallSeg = { id: string; start: Vec2; end: Vec2 }
 
@@ -131,6 +143,7 @@ export const reviewLayout: AgentOperation<ReviewLayoutInput> = (nodes, input) =>
     refuse('no_levels', 'No occupied level to review; create rooms before reviewing a layout.')
 
   const issues: LayoutIssue[] = []
+  const suggestions: LayoutSuggestion[] = []
   const skippedItems: { id: string; name: string; reason: string }[] = []
   const checksRun = new Set<string>()
   const stats = { items: 0, seats: 0, tables: 0, zones: 0 }
@@ -164,6 +177,27 @@ export const reviewLayout: AgentOperation<ReviewLayoutInput> = (nodes, input) =>
         nodeIds: [c.aId, c.bId],
         message: c.message,
       })
+    }
+
+    // --- decor reads: mounted pieces per wall and ceiling lights ---
+    // Ceiling items hang under a ceiling parent in level XZ; wall-mounted
+    // pieces carry wall-local X on their host (same span space decorate_room
+    // books when it hangs art).
+    const ceilingLights: Vec2[] = []
+    const mountedByWall = new Map<string, [number, number][]>()
+    for (const node of onLevel) {
+      if (node.type !== 'item') continue
+      const attach = node.asset?.attachTo
+      if (attach === 'ceiling') {
+        ceilingLights.push([node.position[0] ?? 0, node.position[2] ?? 0])
+        continue
+      }
+      if ((attach === 'wall' || attach === 'wall-side') && node.wallId) {
+        const w = (node.asset?.dimensions?.[0] ?? 0.5) * (node.scale?.[0] ?? 1)
+        const list = mountedByWall.get(node.wallId) ?? []
+        list.push([node.position[0] - w / 2, node.position[0] + w / 2])
+        mountedByWall.set(node.wallId, list)
+      }
     }
 
     // --- collect checkable floor items ---
@@ -337,6 +371,55 @@ export const reviewLayout: AgentOperation<ReviewLayoutInput> = (nodes, input) =>
       })
     }
 
+    // --- interior-design suggestions: focal walls and table lighting ---
+    checksRun.add('decor_focal_wall')
+    for (const item of scoped) {
+      const focal =
+        item.role === 'bed' || (item.role === 'seat' && /sofa|couch/i.test(itemName(item.node)))
+      if (!focal) continue
+      const dims = item.node.asset.dimensions
+      const along =
+        item.front === 'z+' || item.front === 'z-' ? Math.abs(dims[2]) : Math.abs(dims[0])
+      const dir = frontDirection(item.frame.yaw, item.front)
+      const back: Vec2 = [item.frame.x - dir[0] * (along / 2), item.frame.z - dir[1] * (along / 2)]
+      const near = nearestWallDistance(back, walls)
+      if (!near || near.distance > BACK_TO_WALL_DISTANCE) continue
+      const wall = near.wall
+      const wdx = wall.end[0] - wall.start[0]
+      const wdz = wall.end[1] - wall.start[1]
+      const wlen = Math.hypot(wdx, wdz) || 1
+      const localX =
+        ((item.frame.x - wall.start[0]) * wdx + (item.frame.z - wall.start[1]) * wdz) / wlen
+      const mounted = mountedByWall.get(wall.id) ?? []
+      const covered = mounted.some(
+        ([lo, hi]) => localX >= lo - DECOR_WALL_RANGE && localX <= hi + DECOR_WALL_RANGE,
+      )
+      if (covered) continue
+      suggestions.push({
+        code: 'bare_focal_wall',
+        nodeIds: [item.node.id, wall.id],
+        message: `the wall behind ${itemName(item.node)} is bare`,
+        suggestion:
+          'Hang wall art or a mirror centred on the item — decorate_room mounts it on the room-facing side.',
+      })
+    }
+    checksRun.add('decor_lighting')
+    for (const item of scoped) {
+      const litTable =
+        item.role === 'table' || item.role === 'desk' || /coffee/i.test(itemName(item.node))
+      if (!litTable) continue
+      const lit = ceilingLights.some(
+        ([lx, lz]) => Math.hypot(lx - item.frame.x, lz - item.frame.z) <= LIGHT_NEAR_TABLE,
+      )
+      if (lit) continue
+      suggestions.push({
+        code: 'unlit_table',
+        nodeIds: [item.node.id],
+        message: `${itemName(item.node)} has no light overhead`,
+        suggestion: 'Mount a pendant or ceiling light over it — decorate_room places one.',
+      })
+    }
+
     // --- door walkway into each room ---
     checksRun.add('walkway')
     const keepouts = collectDoorKeepouts(onLevel, { levelId })
@@ -390,6 +473,7 @@ export const reviewLayout: AgentOperation<ReviewLayoutInput> = (nodes, input) =>
       issues,
       stats,
       skippedItems,
+      suggestions,
     },
   }
 }

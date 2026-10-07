@@ -1,3 +1,4 @@
+import { applyStyle } from './apply-style'
 import { deleteNode } from './delete-node'
 import { duplicateLevel } from './duplicate-level'
 import { findByType } from './find-by-type'
@@ -14,6 +15,7 @@ import { verifyScene } from './verify-scene'
 export * from './add-column'
 export * from './add-object'
 export * from './apply-changes'
+export * from './apply-style'
 export * from './collections'
 export * from './delete-node'
 export * from './door-clearance'
@@ -53,6 +55,7 @@ export const AGENT_OPERATIONS = {
   orient_item: orientItem,
   review_layout: reviewLayout,
   update_room: updateRoom,
+  apply_style: applyStyle,
   generate_schedule: generateSchedule,
   materials_takeoff: materialsTakeoff,
 } as const

@@ -30,6 +30,7 @@ import type { SceneOperations } from '../operations'
 import { compileAndStore, type GeometryScriptHost, readScript } from './add-object'
 import { ADDITIVE_TOOL_ANNOTATIONS, READ_ONLY_TOOL_ANNOTATIONS } from './annotations'
 import { findCatalogItem, searchCatalogItems, toItemAsset } from './asset-catalog'
+import { registerDecorateRoom } from './decorate-room'
 import { ErrorCode, refusalResult, throwMcpError, toolError } from './errors'
 import {
   type LiveSyncStatus,
@@ -70,7 +71,7 @@ const ROOM_TYPE_KEYWORDS: [RegExp, (typeof ROOM_TYPES)[number]][] = [
 ]
 
 /** A zone's occupancy label, then its name, mapped to a furnish_room layout. */
-function inferRoomType(zone: AnyNode | null) {
+export function inferRoomType(zone: AnyNode | null) {
   if (zone?.type !== 'zone') return undefined
   const occupancy = zone.occupancy?.trim()
   const name = zone.name?.trim()
@@ -906,4 +907,5 @@ export function registerRoomTools(
   registerAddDoor(server, bridge, geometryScripts)
   registerAddWindow(server, bridge, geometryScripts)
   registerFurnishRoom(server, bridge)
+  registerDecorateRoom(server, bridge)
 }

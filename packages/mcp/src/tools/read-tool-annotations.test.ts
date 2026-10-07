@@ -82,6 +82,7 @@ const TOOL_POLICIES = [
       'create_wall',
       'cut_opening',
       'cut_floor_opening',
+      'decorate_room',
       'duplicate_level',
       'furnish_room',
       'generate_variants',
@@ -102,6 +103,7 @@ const TOOL_POLICIES = [
     tools: [
       'apply_patch',
       'add_object',
+      'apply_style',
       'add_column',
       'edit_collection',
       'create_from_template',

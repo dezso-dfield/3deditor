@@ -47,7 +47,7 @@ export const reviewLayoutTool = {
   name: 'review_layout',
   title: 'Review layout',
   description:
-    'Interior-design review of a room or level: doors blocked by furniture, item overlaps, functional clearance violations (the front space an item needs — a fridge door swing, a toilet approach — and the pull-out space behind chairs), seating that does not face its table, beds whose headboard floats off the wall, storage floating off walls, items whose front faces a wall, and blocked walkways from doors into a room. Read-only; fix placements with orient_item, place_item or delete_node, then re-review.',
+    'Interior-design review of a room or level: doors blocked by furniture, item overlaps, functional clearance violations (the front space an item needs — a fridge door swing, a toilet approach — and the pull-out space behind chairs), seating that does not face its table, beds whose headboard floats off the wall, storage floating off walls, items whose front faces a wall, and blocked walkways from doors into a room. `suggestions` adds styling ideas rather than defects — a bare wall behind a sofa or bed that art would suit, a table with no light overhead. Read-only; fix placements with orient_item, place_item or delete_node, dress the room with decorate_room, then re-review.',
   input: {
     levelId: NodeId.optional().describe('Review one level. Default: every occupied level.'),
     zoneId: NodeId.optional().describe(

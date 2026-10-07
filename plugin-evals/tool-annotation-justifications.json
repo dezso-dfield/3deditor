@@ -98,6 +98,19 @@
       }
     },
     {
+      "name": "apply_style",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "justifications": {
+        "readOnlyHint": "It repaints a room's floor, wall and ceiling finishes onto the zone, changing the scene.",
+        "destructiveHint": "It overwrites the zone's existing wall, floor and ceiling finish assignments rather than adding a resource.",
+        "openWorldHint": "It operates only on nodes and catalog materials already inside the connected Pascal service and does not access the public internet."
+      }
+    },
+    {
       "name": "check_collisions",
       "annotations": {
         "readOnlyHint": true,
@@ -276,6 +289,19 @@
       "justifications": {
         "readOnlyHint": "It is not read-only because adds an opening definition to existing Pascal scene geometry.",
         "destructiveHint": "Its intended operation adds new modeled state without deleting or replacing existing Pascal scene or project state.",
+        "openWorldHint": "It operates on the connected Pascal scene, project, and configured catalog data without accessing the public internet."
+      }
+    },
+    {
+      "name": "decorate_room",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "justifications": {
+        "readOnlyHint": "It is not read-only because adds wall art, lighting, rugs and surface decor to a room in the connected Pascal scene.",
+        "destructiveHint": "Its intended operation adds new decor items without deleting or replacing existing Pascal scene or project state.",
         "openWorldHint": "It operates on the connected Pascal scene, project, and configured catalog data without accessing the public internet."
       }
     },
@@ -586,7 +612,7 @@
         "openWorldHint": false
       },
       "justifications": {
-        "readOnlyHint": "It reports which AI providers are configured (kind, selection and expiry only \u2014 never the credentials themselves) without changing scene, project or auth state.",
+        "readOnlyHint": "It reports which AI providers are configured (kind, selection and expiry only — never the credentials themselves) without changing scene, project or auth state.",
         "destructiveHint": "It does not create, update, replace, delete, load, or save Pascal scene or project state.",
         "openWorldHint": "It operates only on the auth file and environment inside the connected Pascal service and does not call the providers or the public internet."
       }

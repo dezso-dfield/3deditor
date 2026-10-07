@@ -6,6 +6,7 @@ import type { AnyNodeId } from '@pascal-app/core/schema'
 import { CeilingNode, LevelNode, SlabNode } from '@pascal-app/core/schema'
 import { SceneBridge } from '../bridge/scene-bridge'
 import { registerRoomTools } from './room-tools'
+import { registerSharedTools } from './shared-tools'
 
 describe('room tools', () => {
   let client: Client
@@ -17,6 +18,7 @@ describe('room tools', () => {
     bridge.loadDefault()
     const server = new McpServer({ name: 'test', version: '0.0.0' })
     registerRoomTools(server, bridge)
+    registerSharedTools(server, bridge)
     const [srvT, cliT] = InMemoryTransport.createLinkedPair()
     client = new Client({ name: 'test-client', version: '0.0.0' })
     await Promise.all([server.connect(srvT), client.connect(cliT)])
@@ -544,5 +546,87 @@ describe('room tools', () => {
       .filter((n) => n.type === 'item')
       .map((n) => n.asset?.id)
     expect(ids).toContain('double-bed')
+  })
+
+  test('apply_style paints a bedroom and reports its finishes', async () => {
+    const level = Object.values(bridge.getNodes()).find((n) => n.type === 'level')!
+    const roomResult = await client.callTool({
+      name: 'create_room',
+      arguments: {
+        levelId: level.id,
+        name: 'Bedroom',
+        polygon: [
+          [0, 0],
+          [5, 0],
+          [5, 4],
+          [0, 4],
+        ],
+      },
+    })
+    const room = JSON.parse((roomResult.content as Array<{ type: string; text: string }>)[0]!.text)
+    const result = await client.callTool({
+      name: 'apply_style',
+      arguments: { zoneId: room.zoneId, style: 'japandi', accentWallId: room.wallIds[0] },
+    })
+    expect(result.isError).toBeFalsy()
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0]!.text)
+    expect(parsed.style).toBe('japandi')
+    expect(parsed.applied).toContain('accent_wall')
+    const zone = bridge.getNode(room.zoneId as AnyNodeId)!
+    expect(zone.wallMaterial).toBe('library:preset-cream')
+    expect(zone.floor?.finish).toBe('library:wood-woodfine2')
+    expect(zone.wallOverrides).toHaveLength(1)
+    expect(zone.ceiling?.regions?.length).toBeGreaterThan(0)
+    expect(bridge.validateScene().valid).toBe(true)
+  })
+
+  test('decorate_room mounts art and lamps after furnish_room', async () => {
+    const level = Object.values(bridge.getNodes()).find((n) => n.type === 'level')!
+    const roomResult = await client.callTool({
+      name: 'create_room',
+      arguments: {
+        levelId: level.id,
+        name: 'Bedroom',
+        polygon: [
+          [0, 0],
+          [5, 0],
+          [5, 4],
+          [0, 4],
+        ],
+      },
+    })
+    const room = JSON.parse((roomResult.content as Array<{ type: string; text: string }>)[0]!.text)
+    bridge.updateNode(room.zoneId as AnyNodeId, { occupancy: 'bedroom' })
+    const furnish = await client.callTool({
+      name: 'furnish_room',
+      arguments: { zoneId: room.zoneId },
+    })
+    expect(furnish.isError).toBeFalsy()
+
+    const result = await client.callTool({
+      name: 'decorate_room',
+      arguments: { zoneId: room.zoneId },
+    })
+    expect(result.isError).toBeFalsy()
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0]!.text)
+    expect(parsed.roomType).toBe('bedroom')
+    expect(parsed.placed).toBeGreaterThan(0)
+    const created = parsed.itemIds.map((id: string) => bridge.getNode(id as AnyNodeId)!)
+    // Wall-mounted decor lands on a wall with the room-facing side.
+    const wallDecor = created.filter((n) => n.wallId)
+    expect(wallDecor.length).toBeGreaterThan(0)
+    for (const n of wallDecor) {
+      const wall = bridge.getNode(n.wallId as AnyNodeId)!
+      expect(wall.type).toBe('wall')
+    }
+    expect(bridge.validateScene().valid).toBe(true)
+  })
+
+  test('decorate_room refuses unknown and non-zone targets', async () => {
+    const missing = await client.callTool({
+      name: 'decorate_room',
+      arguments: { zoneId: 'zone_nope' },
+    })
+    expect(missing.isError).toBeTruthy()
   })
 })

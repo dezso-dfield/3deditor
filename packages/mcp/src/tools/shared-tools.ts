@@ -5,6 +5,7 @@ import {
   type SceneChanges,
 } from '@pascal-app/core/agent-operations'
 import {
+  applyStyleTool,
   deleteNodeTool,
   duplicateLevelTool,
   findByTypeTool,
@@ -199,6 +200,7 @@ const SHARED_TOOLS: SharedTool[] = [
       issues: z.array(jsonObject),
       stats: jsonObject,
       skippedItems: z.array(jsonObject),
+      suggestions: z.array(jsonObject),
     },
   },
   {
@@ -208,6 +210,21 @@ const SHARED_TOOLS: SharedTool[] = [
     outputSchema: {
       zoneId: z.string(),
       updated: z.array(z.string()),
+      ...liveSyncOutput,
+    },
+  },
+  {
+    contract: applyStyleTool,
+    operation: AGENT_OPERATIONS.apply_style,
+    annotations: DESTRUCTIVE_TOOL_ANNOTATIONS,
+    outputSchema: {
+      zoneId: z.string(),
+      style: z.string(),
+      styleLabel: z.string(),
+      applied: z.array(z.string()),
+      finishes: jsonObject,
+      accentWall: jsonObject.optional(),
+      changedFields: z.array(z.string()),
       ...liveSyncOutput,
     },
   },

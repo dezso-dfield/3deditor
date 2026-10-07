@@ -246,3 +246,57 @@ describe('update_room', () => {
     expect(refusalCode(() => updateRoom(nodes(w), { zoneId: 'w1', name: 'x' }))).toBe('not_a_zone')
   })
 })
+
+describe('review_layout suggestions', () => {
+  test('bare focal wall behind a backed-up bed', () => {
+    const w = wall('w1', [0, 0], [4, 0])
+    const bed = item('bed', [2, 0, 0.9], [1.6, 0.6, 2.1], 'Bed', 0, {
+      role: 'bed',
+      front: 'z+',
+    })
+    const out = reviewLayout(nodes(level('level_1', ['w1', 'bed']), w, bed), {
+      levelId: 'level_1',
+    })
+    const suggestions = out.result.suggestions as { code: string; nodeIds: string[] }[]
+    const bare = suggestions.find((sg) => sg.code === 'bare_focal_wall')
+    expect(bare?.nodeIds).toContain('bed')
+    expect(bare?.nodeIds).toContain('w1')
+  })
+
+  test('a mounted piece near the bed clears the suggestion', () => {
+    const art = item('art', [2, 1.4, 0], [1.5, 0.8, 0.06], 'Art', 0, {
+      attachTo: 'wall-side',
+    })
+    art.parentId = 'w1'
+    art.wallId = 'w1'
+    art.side = 'front'
+    const w = wall('w1', [0, 0], [4, 0])
+    ;(w.children as string[]).push('art')
+    const bed = item('bed', [2, 0, 0.9], [1.6, 0.6, 2.1], 'Bed', 0, {
+      role: 'bed',
+      front: 'z+',
+    })
+    const out = reviewLayout(nodes(level('level_1', ['w1', 'bed']), w, bed, art), {
+      levelId: 'level_1',
+    })
+    const suggestions = out.result.suggestions as { code: string }[]
+    expect(suggestions.some((sg) => sg.code === 'bare_focal_wall')).toBe(false)
+  })
+
+  test('unlit table suggests a pendant, a ceiling lamp clears it', () => {
+    const table = item('table', [2, 0, 2], [0.9, 0.75, 0.9], 'Coffee Table', 0, {
+      role: 'table',
+      surface: { height: 0.75 },
+    })
+    const dark = reviewLayout(nodes(level('level_1', ['table']), table), { levelId: 'level_1' })
+    const darkSuggestions = dark.result.suggestions as { code: string }[]
+    expect(darkSuggestions.some((sg) => sg.code === 'unlit_table')).toBe(true)
+
+    const lamp = item('lamp', [2, 0, 2], [0.5, 0.8, 0.5], 'Lamp', 0, { attachTo: 'ceiling' })
+    const lit = reviewLayout(nodes(level('level_1', ['table', 'lamp']), table, lamp), {
+      levelId: 'level_1',
+    })
+    const litSuggestions = lit.result.suggestions as { code: string }[]
+    expect(litSuggestions.some((sg) => sg.code === 'unlit_table')).toBe(false)
+  })
+})
