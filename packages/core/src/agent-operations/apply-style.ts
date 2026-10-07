@@ -65,6 +65,48 @@ export const STYLE_PRESETS: Record<StylePresetId, StylePreset> = {
     ceiling: { ref: 'library:preset-softwhite', label: 'soft white paint' },
     accent: { ref: 'library:preset-terracotta', label: 'terracotta paint' },
   },
+  coastal: {
+    label: 'Coastal',
+    floor: { ref: 'library:wood-woodfine13', label: 'bleached oak floor' },
+    walls: { ref: 'library:preset-white', label: 'white paint' },
+    ceiling: { ref: 'library:preset-white', label: 'white paint' },
+    accent: { ref: 'library:preset-paleteal', label: 'pale teal paint' },
+  },
+  farmhouse: {
+    label: 'Farmhouse',
+    floor: { ref: 'library:wood-woodplank19', label: 'rustic plank floor' },
+    walls: { ref: 'library:preset-cream', label: 'cream paint' },
+    ceiling: { ref: 'library:preset-white', label: 'white paint' },
+    accent: { ref: 'library:preset-olive', label: 'olive green paint' },
+  },
+  bohemian: {
+    label: 'Bohemian',
+    floor: { ref: 'library:wood-woodparquet56', label: 'aged parquet' },
+    walls: { ref: 'library:preset-sand', label: 'sand paint' },
+    ceiling: { ref: 'library:preset-softwhite', label: 'soft white paint' },
+    accent: { ref: 'library:preset-burntorange', label: 'burnt orange paint' },
+  },
+  minimal: {
+    label: 'Minimal',
+    floor: { ref: 'library:flooring-lightceramic24', label: 'light ceramic tile' },
+    walls: { ref: 'library:preset-white', label: 'white paint' },
+    ceiling: { ref: 'library:preset-white', label: 'white paint' },
+    accent: { ref: 'library:preset-lightgrey', label: 'light grey paint' },
+  },
+  artdeco: {
+    label: 'Art Deco',
+    floor: { ref: 'library:wood-hungarianparquet2', label: 'dark herringbone parquet' },
+    walls: { ref: 'library:preset-greige', label: 'greige paint' },
+    ceiling: { ref: 'library:preset-softwhite', label: 'soft white paint' },
+    accent: { ref: 'library:preset-deepteal', label: 'deep teal paint' },
+  },
+  mediterranean: {
+    label: 'Mediterranean',
+    floor: { ref: 'library:flooring-tile79', label: 'terracotta tile' },
+    walls: { ref: 'library:preset-sand', label: 'sand paint' },
+    ceiling: { ref: 'library:preset-white', label: 'white paint' },
+    accent: { ref: 'library:preset-sky', label: 'sky blue paint' },
+  },
 }
 
 const STYLE_CEILING_REGION_PREFIX = 'style-ceiling-'

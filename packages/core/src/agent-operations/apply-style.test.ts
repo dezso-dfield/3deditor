@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { STYLE_PRESET_IDS } from '../agent-tools/levels'
 import { type AgentRefusal, isAgentRefusal } from '../agent-tools/refusal'
 import type { AnyNode } from '../schema'
 import { applyStyle, STYLE_PRESETS } from './apply-style'
@@ -97,6 +98,24 @@ describe('apply_style', () => {
       .ceiling.regions
     expect(regions.map((r) => r.id)).toContain('paint-1')
     expect(regions[regions.length - 1]?.finish).toBe(STYLE_PRESETS.japandi.ceiling.ref)
+  })
+
+  test('every preset resolves real finishes and applies them', () => {
+    for (const style of STYLE_PRESET_IDS) {
+      const out = applyStyle(nodes(level(), zone('zone_1', SQUARE)), {
+        zoneId: 'zone_1',
+        style,
+      })
+      expect(out.result.style).toBe(style)
+      expect(out.result.applied).toContain('floor')
+      expect(out.result.applied).toContain('walls')
+      expect(out.result.applied).toContain('ceiling')
+      const preset = STYLE_PRESETS[style]
+      expect(preset.floor.ref).toStartWith('library:')
+      expect(preset.walls.ref).toStartWith('library:')
+      expect(preset.ceiling.ref).toStartWith('library:')
+      expect(preset.accent.ref).toStartWith('library:')
+    }
   })
 
   test('replaces a prior style region instead of stacking them', () => {
