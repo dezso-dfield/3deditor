@@ -2,10 +2,11 @@
 
 import { Editor, ItemsPanel } from '@pascal-app/editor'
 import { PascalWebXRButton } from '@webxr/plugin/pascal-editor'
-import { Hammer, Layers, Package, Palette, Settings } from 'lucide-react'
+import { Hammer, Layers, Package, Palette, Settings, Sparkles } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { BuildTab } from '@/components/build-tab'
+import { DesignPanel } from '@/components/design-panel'
 import { PaintPanel } from '@/components/paint-panel'
 import {
   CommunityViewerToolbarLeft,
@@ -88,6 +89,14 @@ const SIDEBAR_TABS = [
         width={32}
       />
     ),
+  },
+  {
+    id: 'design',
+    label: 'Design',
+    component: DesignPanel,
+    mobileDefaultSnap: 0.5,
+    mobileIcon: <Sparkles className="h-5 w-5" />,
+    icon: <Sparkles className="h-7 w-7 text-muted-foreground" />,
   },
   {
     id: 'settings',
