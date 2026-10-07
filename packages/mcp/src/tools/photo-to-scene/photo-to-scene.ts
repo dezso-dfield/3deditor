@@ -11,10 +11,12 @@ import {
   ZoneNode,
 } from '@pascal-app/core/schema'
 import { z } from 'zod'
+import { visionComplete } from '../../ai/vision-channel'
 import type { SceneOperations } from '../../operations'
 import { DESTRUCTIVE_OPEN_WORLD_TOOL_ANNOTATIONS } from '../annotations'
 import { appendLiveSceneEvent } from '../live-sync'
 import { measurement } from '../measurement'
+import { resolveImageBlock } from '../vision/sampling'
 
 /**
  * Input shape for the `photo_to_scene` orchestrator. `image` matches the
@@ -95,98 +97,28 @@ Only include a wall height when it is visibly measured or annotated in the image
 If the image is unclear, lower the confidence score but still produce your best attempt.
 DO NOT wrap the JSON in markdown. DO NOT explain. Just output the raw JSON.`
 
-const DATA_URI_RE = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i
-
-type ImageBlock = {
-  type: 'image'
-  data: string
-  mimeType: string
-}
-
 /**
- * Resolve the `image` input into a sampling-ready image block. Follows the
- * same fetch/data-uri/raw-base64 rules as the vision tool so the user gets
- * consistent behaviour whether they call `photo_to_scene` or
- * `analyze_floorplan_image` directly.
- */
-async function resolveImageBlock(image: string): Promise<ImageBlock> {
-  if (/^https?:\/\//i.test(image)) {
-    // SSRF-safe fetch (see packages/mcp/src/lib/safe-fetch.ts).
-    const { safeFetch } = await import('../../lib/safe-fetch')
-    const res = await safeFetch(image, { accept: 'image/*' })
-    const data = res.buffer.toString('base64')
-    const mimeType = res.contentType ?? 'image/jpeg'
-    return { type: 'image', data, mimeType }
-  }
-
-  const dataUriMatch = image.match(DATA_URI_RE)
-  if (dataUriMatch) {
-    return {
-      type: 'image',
-      mimeType: dataUriMatch[1]!,
-      data: dataUriMatch[2]!,
-    }
-  }
-
-  return { type: 'image', mimeType: 'image/jpeg', data: image }
-}
-
-/** Collect all text content blocks returned by the sampling host into one string. */
-function extractText(
-  content:
-    | { type: 'text'; text: string }
-    | { type: 'image' | 'audio'; data: string; mimeType: string }
-    | Array<
-        | { type: 'text'; text: string }
-        | { type: 'image' | 'audio'; data: string; mimeType: string }
-        | { type: string; [k: string]: unknown }
-      >,
-): string {
-  const blocks = Array.isArray(content) ? content : [content]
-  const texts: string[] = []
-  for (const block of blocks) {
-    if (block && typeof block === 'object' && (block as { type?: string }).type === 'text') {
-      const t = (block as { text?: unknown }).text
-      if (typeof t === 'string') texts.push(t)
-    }
-  }
-  return texts.join('\n').trim()
-}
-
-/**
- * Call the host's sampling capability to analyse a floor-plan photo. Throws
- * `sampling_unavailable` when the host has not advertised the capability and
+ * Call the configured provider or the host's sampling capability to analyse a
+ * floor-plan photo. Throws `sampling_unavailable` when neither exists and
  * `sampling_response_unparseable` / `sampling_response_invalid` when the
  * reply cannot be mapped onto `VisionResponseSchema`.
  */
-async function callVisionSampling(
+async function callVision(
   server: McpServer,
   image: string,
   scaleHint: string | undefined,
 ): Promise<VisionResponse> {
-  const caps = server.server.getClientCapabilities()
-  if (!caps?.sampling) {
-    throw new McpError(ErrorCode.InvalidRequest, 'sampling_unavailable')
-  }
-
   const imageBlock = await resolveImageBlock(image)
   const instruction = scaleHint
     ? `Analyze this floor plan. Scale hint: ${scaleHint}. Return ONLY the JSON described by the system prompt.`
     : 'Analyze this floor plan. Return ONLY the JSON described by the system prompt.'
 
-  const response = await server.server.createMessage({
+  const { text } = await visionComplete(server, {
     systemPrompt: SYSTEM_PROMPT,
-    temperature: 0,
+    prompt: instruction,
+    images: [imageBlock],
     maxTokens: 2000,
-    messages: [
-      {
-        role: 'user',
-        content: [imageBlock, { type: 'text', text: instruction }],
-      },
-    ],
   })
-
-  const text = extractText(response.content as Parameters<typeof extractText>[0])
   if (!text) {
     throw new McpError(ErrorCode.InternalError, 'sampling_response_unparseable', {
       reason: 'no text content returned by host',
@@ -356,14 +288,14 @@ export function registerPhotoToScene(server: McpServer, bridge: SceneOperations)
     {
       title: 'Photo to Pascal scene',
       description:
-        'Orchestrator: analyse a floor-plan photo via MCP sampling, translate the structured vision result into a Pascal SceneGraph (site → building → level with walls and zones), optionally save it, and swap the bridge to the new scene. Requires host support for sampling.',
+        'Orchestrator: analyse a floor-plan photo with the configured AI provider (`pascal ai login`) or MCP sampling, translate the structured vision result into a Pascal SceneGraph (site → building → level with walls and zones), optionally save it, and swap the bridge to the new scene. See list_ai_providers for what is connected.',
       inputSchema: photoToSceneInput,
       outputSchema: photoToSceneOutput,
       annotations: DESTRUCTIVE_OPEN_WORLD_TOOL_ANNOTATIONS,
     },
     async ({ image, scaleHint, name, save, defaultWallThickness, defaultWallHeight }) => {
       // 1. Vision.
-      const vision = await callVisionSampling(server, image, scaleHint)
+      const vision = await callVision(server, image, scaleHint)
 
       // 2. Build scene graph.
       const built = buildSceneGraphFromVision(vision, defaultWallThickness, defaultWallHeight)

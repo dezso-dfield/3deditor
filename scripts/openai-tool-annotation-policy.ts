@@ -60,6 +60,7 @@ export const EXPECTED_OPENAI_TOOL_ANNOTATIONS = {
   get_scene: policy(true, false, false),
   get_walls: policy(true, false, false),
   get_zones: policy(true, false, false),
+  list_ai_providers: policy(true, false, false),
   list_levels: policy(true, false, false),
   list_scenes: policy(true, false, false),
   list_templates: policy(true, false, false),

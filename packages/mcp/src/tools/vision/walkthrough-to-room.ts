@@ -15,6 +15,7 @@ import type { SceneGraph } from '@pascal-app/core/clone-scene-graph'
 import type { AnyNode, AnyNodeId, WallNode as WallNodeType } from '@pascal-app/core/schema'
 import { ItemNode } from '@pascal-app/core/schema'
 import { z } from 'zod'
+import { visionComplete } from '../../ai/vision-channel'
 import type { SceneOperations } from '../../operations'
 import { ADDITIVE_OPEN_WORLD_TOOL_ANNOTATIONS } from '../annotations'
 import { findCatalogItem, searchCatalogItems, toItemAsset } from '../asset-catalog'
@@ -22,7 +23,7 @@ import { toolError } from '../errors'
 import { publishLiveSceneSnapshot } from '../live-sync'
 import { measurement } from '../measurement'
 import { NodeIdSchema } from '../schemas'
-import { assertSampling, extractText, parseSamplingJson, resolveImageBlock } from './sampling'
+import { parseSamplingJson, resolveImageBlock } from './sampling'
 
 /**
  * `walkthrough_to_room`: interior photos — or frames of a walkthrough video —
@@ -211,7 +212,7 @@ export function registerWalkthroughToRoom(server: McpServer, bridge: SceneOperat
     {
       title: 'Walkthrough to room',
       description:
-        'Reconstruct an editable room from interior photos or frames of a walkthrough video: the host vision estimates the plan, furniture and facings; placements reuse the furnish_room door/overlap machinery so weak estimates nudge rather than fail; review_layout audits the result. Requires host sampling.',
+        'Reconstruct an editable room from interior photos or frames of a walkthrough video: the configured AI provider (`pascal ai login`) or the host vision estimates the plan, furniture and facings; placements reuse the furnish_room door/overlap machinery so weak estimates nudge rather than fail; review_layout audits the result. See list_ai_providers for what is connected.',
       inputSchema: walkthroughToRoomInput,
       outputSchema: walkthroughToRoomOutput,
       annotations: ADDITIVE_OPEN_WORLD_TOOL_ANNOTATIONS,
@@ -227,26 +228,17 @@ export function registerWalkthroughToRoom(server: McpServer, bridge: SceneOperat
       defaultWallThickness,
       defaultWallHeight,
     }) => {
-      assertSampling(() => server.server.getClientCapabilities())
-
       const imageBlocks = await Promise.all(images.map((image) => resolveImageBlock(image)))
       const instruction = scaleHint
         ? `Reconstruct this room's floor plan. Scale hint: ${scaleHint}. Return ONLY the JSON described by the system prompt.`
         : "Reconstruct this room's floor plan. Return ONLY the JSON described by the system prompt."
 
-      const response = await server.server.createMessage({
+      const { text } = await visionComplete(server, {
         systemPrompt: SYSTEM_PROMPT,
-        temperature: 0,
+        prompt: instruction,
+        images: imageBlocks,
         maxTokens: 4000,
-        messages: [
-          {
-            role: 'user',
-            content: [...imageBlocks, { type: 'text' as const, text: instruction }],
-          },
-        ],
       })
-
-      const text = extractText(response.content as Parameters<typeof extractText>[0])
       const vision = parseSamplingJson(text, (parsed) => VisionResponseSchema.safeParse(parsed))
 
       // The room plan: an existing zone's polygon, the vision's outline, or a

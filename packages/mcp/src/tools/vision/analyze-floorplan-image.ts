@@ -1,8 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+import { visionComplete } from '../../ai/vision-channel'
 import type { SceneOperations } from '../../operations'
 import { READ_ONLY_OPEN_WORLD_TOOL_ANNOTATIONS } from '../annotations'
-import { assertSampling, extractText, parseSamplingJson, resolveImageBlock } from './sampling'
+import { parseSamplingJson, resolveImageBlock } from './sampling'
 
 /**
  * Input shape for `analyze_floorplan_image`.
@@ -63,32 +64,23 @@ export function registerAnalyzeFloorplanImage(server: McpServer, _bridge: SceneO
     {
       title: 'Analyze floor-plan image',
       description:
-        'Defer to the MCP host (via sampling) to extract walls, rooms, and approximate dimensions from a floor-plan image. Requires host support for sampling.',
+        'Extract walls, rooms, and approximate dimensions from a floor-plan image with the configured AI provider (`pascal ai login`), falling back to MCP host sampling. See list_ai_providers for what is connected.',
       inputSchema: analyzeFloorplanImageInput,
       outputSchema: analyzeFloorplanImageOutput,
       annotations: READ_ONLY_OPEN_WORLD_TOOL_ANNOTATIONS,
     },
     async ({ image, scaleHint }) => {
-      assertSampling(() => server.server.getClientCapabilities())
-
       const imageBlock = await resolveImageBlock(image)
       const instruction = scaleHint
         ? `Analyze this floor plan. Scale hint: ${scaleHint}. Return ONLY the JSON described by the system prompt.`
         : 'Analyze this floor plan. Return ONLY the JSON described by the system prompt.'
 
-      const response = await server.server.createMessage({
+      const { text } = await visionComplete(server, {
         systemPrompt: SYSTEM_PROMPT,
-        temperature: 0,
+        prompt: instruction,
+        images: [imageBlock],
         maxTokens: 2000,
-        messages: [
-          {
-            role: 'user',
-            content: [imageBlock, { type: 'text', text: instruction }],
-          },
-        ],
       })
-
-      const text = extractText(response.content as Parameters<typeof extractText>[0])
       const payload = parseSamplingJson(text, (parsed) => OutputSchema.safeParse(parsed))
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(payload) }],

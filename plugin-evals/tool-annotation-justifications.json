@@ -579,6 +579,19 @@
       }
     },
     {
+      "name": "list_ai_providers",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "justifications": {
+        "readOnlyHint": "It reports which AI providers are configured (kind, selection and expiry only \u2014 never the credentials themselves) without changing scene, project or auth state.",
+        "destructiveHint": "It does not create, update, replace, delete, load, or save Pascal scene or project state.",
+        "openWorldHint": "It operates only on the auth file and environment inside the connected Pascal service and does not call the providers or the public internet."
+      }
+    },
+    {
       "name": "list_collections",
       "annotations": {
         "readOnlyHint": true,

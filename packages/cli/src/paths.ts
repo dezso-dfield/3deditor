@@ -16,6 +16,7 @@ export interface PascalPaths {
   database: string
   editorLog: string
   mcpToken: string
+  authFile: string
 }
 
 export function resolvePascalPaths(environment: NodeJS.ProcessEnv = process.env): PascalPaths {
@@ -35,5 +36,6 @@ export function resolvePascalPaths(environment: NodeJS.ProcessEnv = process.env)
     database: path.join(root, 'data/pascal.db'),
     editorLog: path.join(root, 'logs/editor.log'),
     mcpToken: path.join(root, 'run/mcp-token'),
+    authFile: environment.PASCAL_AUTH_FILE || path.join(root, 'auth.json'),
   }
 }

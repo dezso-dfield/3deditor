@@ -95,6 +95,11 @@
       "types": "./dist/agent-operations/index.d.ts",
       "import": "./dist/agent-operations/index.js",
       "default": "./dist/agent-operations/index.js"
+    },
+    "./ai": {
+      "types": "./dist/ai/index.d.ts",
+      "import": "./dist/ai/index.js",
+      "default": "./dist/ai/index.js"
     }
   },
   "files": [
