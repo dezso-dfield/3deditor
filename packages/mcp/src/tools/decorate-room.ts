@@ -21,7 +21,7 @@ import { ItemNode } from '@pascal-app/core/schema'
 import { z } from 'zod'
 import type { SceneOperations } from '../operations'
 import { ADDITIVE_TOOL_ANNOTATIONS } from './annotations'
-import { findCatalogItem, toItemAsset } from './asset-catalog'
+import { findCatalogItem, isLowProfileAsset, toItemAsset } from './asset-catalog'
 import { ErrorCode, throwMcpError } from './errors'
 import {
   type LiveSyncStatus,
@@ -195,6 +195,38 @@ function wallBehind(
   return best
 }
 
+/**
+ * The room's focal wall — the boundary wall its bed, sofa or desk backs onto —
+ * which is where an interior designer lands the accent colour.
+ */
+export function findFocalWallId(bridge: SceneOperations, zoneId: string): string | undefined {
+  const zone = bridge.getNode(zoneId as AnyNodeId)
+  if (zone?.type !== 'zone' || !zone.parentId) return undefined
+  const levelId = zone.parentId
+  const allNodes = Object.values(bridge.getNodes())
+  const onLevel = allNodes.filter((n) => n.parentId === levelId)
+  const nodeMap = bridge.getNodes() as Record<string, AnyNode>
+  const polygon = zone.polygon as Vec2[]
+  const walls = zoneBoundaryWalls(onLevel, levelId, zone)
+
+  const zoneItems = onLevel.filter((n): n is AnyNode & { type: 'item' } => {
+    if (n.type !== 'item') return false
+    const frame = itemWorldPlan(nodeMap, n)
+    return !!frame && pointInPolygon([frame.x, frame.z], polygon, true)
+  })
+  const candidates = [
+    ...zoneItems.filter((i) => itemRole(i) === 'bed' || i.asset?.role === 'bed'),
+    ...zoneItems.filter((i) => ['sofa', 'desk'].includes(i.asset?.id ?? '')),
+  ]
+  for (const item of candidates) {
+    const frame = itemWorldPlan(nodeMap, item)
+    if (!frame) continue
+    const back = wallBehind(frame, item, walls)
+    if (back) return back.wall.node.id
+  }
+  return undefined
+}
+
 export type DecorateRoomArgs = {
   zoneId: string
   depth?: 'light' | 'full'
@@ -309,12 +341,20 @@ export async function decorateRoom(bridge: SceneOperations, args: DecorateRoomAr
     })
   }
 
-  const onSurface = (host: AnyNode & { type: 'item' }, assetId: string, note: string) => {
+  const onSurface = (
+    host: AnyNode & { type: 'item' },
+    assetId: string,
+    note: string,
+    allowDepthOverhang = false,
+  ) => {
     if (!host.asset?.surface) return
     const asset = findCatalogItem(assetId)
     if (!asset) return
     const hostDims = host.asset?.dimensions ?? [1, 1, 1]
-    if (asset.dimensions![0] > hostDims[0] * 0.9 || asset.dimensions![2] > hostDims[2] * 0.9) {
+    if (
+      asset.dimensions![0] > hostDims[0] * 0.9 ||
+      (!allowDepthOverhang && asset.dimensions![2] > hostDims[2] * 0.9)
+    ) {
       suggested.push(`place ${asset.name} on ${itemName(host)} — its top is too small`)
       return
     }
@@ -459,6 +499,11 @@ export async function decorateRoom(bridge: SceneOperations, args: DecorateRoomAr
       if (diningTable) {
         pendantOver(diningTable, 'dining table')
         onSurface(diningTable, 'wine-bottle', 'wine bottle on the dining table')
+        if (!hasRug && Math.min(bounds.width, bounds.depth) >= 2.6) {
+          const frame = frameOf(diningTable)
+          if (frame)
+            floorDecor('rectangular-carpet', frame.x, frame.z, 0, 'rug under the dining table')
+        }
       }
       const spot = freeWallCenter(1.6)
       if (spot)
@@ -478,7 +523,9 @@ export async function decorateRoom(bridge: SceneOperations, args: DecorateRoomAr
       }
       const tvStand = byAssetId('tv-stand')[0]
       if (tvStand) {
-        onSurface(tvStand, 'small-indoor-plant', 'plant on the TV stand')
+        // TV feet routinely overhang the back edge of the stand a few cm; the
+        // screen fills the top, so nothing else goes on it.
+        onSurface(tvStand, 'television', 'TV on the TV stand', true)
         const frame = frameOf(tvStand)
         if (frame) {
           const dir = frontDir(frame.yaw, tvStand.asset?.front ?? 'z+')
@@ -739,11 +786,13 @@ export async function decorateRoom(bridge: SceneOperations, args: DecorateRoomAr
       continue
     }
 
+    const lowProfile = isLowProfileAsset(asset)
     const resolved = findValidPlacement({
       primary: { x: w.x, z: w.z, rotationDeg: w.rotationDeg ?? 0 },
       dimensions: asset.dimensions,
       doorKeepouts,
-      occupied,
+      // Rugs slide under furniture by design; doors and room bounds still apply.
+      occupied: lowProfile ? [] : occupied,
       roomBounds,
       ...(w.along ? { along: w.along } : {}),
       ...(w.inward ? { inward: w.inward } : {}),
@@ -755,7 +804,7 @@ export async function decorateRoom(bridge: SceneOperations, args: DecorateRoomAr
     }
     const { x, z, rotationDeg } = resolved.candidate
     const rotRad = (rotationDeg * Math.PI) / 180
-    occupied.push(itemPlanAabb([x, 0, z], asset.dimensions, rotRad))
+    if (!lowProfile) occupied.push(itemPlanAabb([x, 0, z], asset.dimensions, rotRad))
     items.push(
       ItemNode.parse({
         name: asset.name,

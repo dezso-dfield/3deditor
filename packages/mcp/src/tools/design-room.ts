@@ -5,7 +5,7 @@ import type { AnyNode, AnyNodeId } from '@pascal-app/core/schema'
 import { z } from 'zod'
 import type { SceneOperations } from '../operations'
 import { DESTRUCTIVE_TOOL_ANNOTATIONS } from './annotations'
-import { decorateRoom } from './decorate-room'
+import { decorateRoom, findFocalWallId } from './decorate-room'
 import { toolError } from './errors'
 import { liveSyncOutput, persistencePayload, publishLiveSceneSnapshot } from './live-sync'
 import { furnishRoom } from './room-tools'
@@ -27,7 +27,7 @@ export const designRoomInput = {
     .optional()
     .describe('Paint the room into this interior style (apply_style). Omit for furnishing only.'),
   accentWallId: NodeIdSchema.optional().describe(
-    'Boundary wall to paint with the style’s accent colour — e.g. the wall a bed or sofa backs onto.',
+    'Boundary wall to paint with the style’s accent colour. Omit to auto-pick the focal wall — the one the bed, sofa or desk backs onto.',
   ),
   furnish: z
     .boolean()
@@ -97,7 +97,7 @@ export function registerDesignRoom(server: McpServer, bridge: SceneOperations): 
     {
       title: 'Design room',
       description:
-        'One-shot interior design for a room: update_room (name/roomType) → furnish_room → apply_style → improve_layout → decorate_room → review_layout, all in a single call. Furnish skips and nudges poses that block doors or overlap; improve_layout re-validates every move; decorate_room styles to the room. Steps report individually, the run stops at the first hard refusal (a missing room, an unknown room type), and the result always ends with the layout review — issues under `review.issues`, styling ideas under `review.suggestions`. Pass only what changes: style-only runs furnish nothing.',
+        'One-shot interior design for a room: update_room (name/roomType) → furnish_room → apply_style → improve_layout → decorate_room → review_layout, all in a single call. The styling follows real interior-design conventions — showers hug a corner, rugs slide under the coffee or dining table, the accent chair angles toward the table, the accent colour lands on the focal wall (behind the bed, sofa or desk) when none is given, and the TV mounts on its stand. Furnish skips and nudges poses that block doors or overlap; improve_layout re-validates every move; decorate_room styles to the room. Steps report individually, the run stops at the first hard refusal (a missing room, an unknown room type), and the result always ends with the layout review — issues under `review.issues`, styling ideas under `review.suggestions`. Pass only what changes: style-only runs furnish nothing.',
       inputSchema: designRoomInput,
       outputSchema: designRoomOutput,
       annotations: DESTRUCTIVE_TOOL_ANNOTATIONS,
@@ -166,12 +166,19 @@ export function registerDesignRoom(server: McpServer, bridge: SceneOperations): 
 
       if (style !== undefined) {
         try {
+          // No wall picked? The focal wall — the one the bed, sofa or desk
+          // backs onto — is where the accent colour belongs.
+          const resolvedAccent = accentWallId ?? findFocalWallId(bridge, zoneId)
           runOp(bridge, AGENT_OPERATIONS.apply_style, {
             zoneId,
             style,
-            ...(accentWallId !== undefined ? { accentWallId } : {}),
+            ...(resolvedAccent !== undefined ? { accentWallId: resolvedAccent } : {}),
           })
-          steps.push({ step: 'apply_style', ok: true, detail: style })
+          steps.push({
+            step: 'apply_style',
+            ok: true,
+            detail: resolvedAccent && !accentWallId ? `${style} — focal wall` : style,
+          })
         } catch (error) {
           return abort(
             'apply_style',

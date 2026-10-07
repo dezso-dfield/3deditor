@@ -1167,6 +1167,17 @@ export function toItemAsset(asset: AssetInput) {
   }
 }
 
+/**
+ * Rugs, mats and other floor-resting pieces low enough to host furniture on top —
+ * they never block placements themselves and may sit under furniture footprints
+ * (same ≤0.1 m surface rule the scene graph uses for low-profile item surfaces).
+ */
+export function isLowProfileAsset(asset: AssetInput): boolean {
+  if (asset.attachTo) return false
+  const height = asset.surface?.height ?? asset.dimensions?.[1] ?? 1
+  return height <= 0.1
+}
+
 export function searchCatalogItems(args: {
   query: string
   category?: string | undefined

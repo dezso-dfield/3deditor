@@ -77,6 +77,19 @@ describe('design_room', () => {
     expect(zone?.type === 'zone' && zone.occupancy).toBe('bedroom')
   })
 
+  test('auto-picks the focal wall for the accent colour', async () => {
+    const zoneId = await createRoom()
+    const result = await client.callTool({
+      name: 'design_room',
+      arguments: { zoneId, roomType: 'bedroom', style: 'modern' },
+    })
+    expect(result.isError).toBeFalsy()
+    const zone = bridge.getNode(zoneId as never)
+    expect(
+      zone?.type === 'zone' && Array.isArray(zone.wallOverrides) && zone.wallOverrides.length,
+    ).toBeGreaterThan(0)
+  })
+
   test('refuses cleanly when the room type cannot be inferred', async () => {
     const zoneId = await createRoom('Room 1')
     const result = await client.callTool({

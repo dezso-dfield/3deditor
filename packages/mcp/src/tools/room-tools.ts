@@ -29,7 +29,12 @@ import { z } from 'zod'
 import type { SceneOperations } from '../operations'
 import { compileAndStore, type GeometryScriptHost, readScript } from './add-object'
 import { ADDITIVE_TOOL_ANNOTATIONS, READ_ONLY_TOOL_ANNOTATIONS } from './annotations'
-import { findCatalogItem, searchCatalogItems, toItemAsset } from './asset-catalog'
+import {
+  findCatalogItem,
+  isLowProfileAsset,
+  searchCatalogItems,
+  toItemAsset,
+} from './asset-catalog'
 import { registerDecorateRoom } from './decorate-room'
 import { registerDesignRoom } from './design-room'
 import { ErrorCode, refusalResult, throwMcpError, toolError } from './errors'
@@ -314,15 +319,23 @@ function buildRoomPlacements(
       addBack('toilet', 0.55, alongLen * 0.25)
       addBack('bathroom-sink', 0.8, -alongLen * 0.2)
       if (area >= 6.5) addSide('bathtub', 0.85)
-      else placements.push({ assetId: 'shower-square', x: bounds.centerX, z: bounds.centerZ })
+      // Showers belong in a corner, never free-standing in the middle of the room.
+      else addSide('shower-square', 0.5, sideAlongLen * 0.28)
       break
     case 'living': {
       addBack('sofa', 0.9)
       addBack('coffee-table', 2.1)
-      addSide('livingroom-chair', 0.85, -sideAlongLen * 0.18)
-      // A rug bridges sofa and coffee table; a lamp and a plant fill the back
-      // corners when the room can take them.
-      if (area >= 8) addBack('rectangular-carpet', 1.5)
+      {
+        // The accent chair angles toward the coffee table like a designer would
+        // set it, not perpendicular to its own wall.
+        const [chairX, chairZ] = sidePos(0.85, -sideAlongLen * 0.18)
+        const [tableX, tableZ] = backPos(2.1)
+        const chairRot = (Math.atan2(tableX - chairX, tableZ - chairZ) * 180) / Math.PI
+        addSide('livingroom-chair', 0.85, -sideAlongLen * 0.18, chairRot)
+      }
+      // The rug centers under the coffee table; a lamp and a plant fill the
+      // back corners when the room can take them.
+      if (area >= 8) addBack('rectangular-carpet', 2.1)
       if (area >= 9) {
         addBack('floor-lamp', 0.4, -(alongLen / 2 - 0.55))
         addBack('indoor-plant', 0.45, alongLen / 2 - 0.55)
@@ -356,13 +369,21 @@ function buildRoomPlacements(
     }
     case 'dining':
       placements.push({ assetId: 'dining-table', x: bounds.centerX, z: bounds.centerZ })
-      placements.push({ assetId: 'dining-chair', x: bounds.centerX, z: bounds.centerZ - 0.85 })
-      placements.push({
-        assetId: 'dining-chair',
-        x: bounds.centerX,
-        z: bounds.centerZ + 0.85,
-        rotationDeg: 180,
-      })
+      // A 2.16 m table seats two per long side when the room leaves a walkway;
+      // a single centred pair is the fallback for tighter rooms.
+      for (const dx of bounds.width >= 3.6 ? [-0.55, 0.55] : [0]) {
+        placements.push({
+          assetId: 'dining-chair',
+          x: bounds.centerX + dx,
+          z: bounds.centerZ - 0.85,
+        })
+        placements.push({
+          assetId: 'dining-chair',
+          x: bounds.centerX + dx,
+          z: bounds.centerZ + 0.85,
+          rotationDeg: 180,
+        })
+      }
       if (Math.min(bounds.width, bounds.depth) >= 3.4) {
         // Table half-width (≈1.08) + chair half-depth + a serving gap: the
         // side chairs stand clear of the table and face it, not away from it.
@@ -836,11 +857,14 @@ export async function furnishRoom(bridge: SceneOperations, args: FurnishRoomArgs
       z: placement.z,
       rotationDeg: placement.rotationDeg ?? 0,
     }
+    const lowProfile = isLowProfileAsset(asset)
     const resolved = findValidPlacement({
       primary,
       dimensions: asset.dimensions,
       doorKeepouts: doorKeepoutAabbs,
-      occupied,
+      // Rugs sit under furniture footprints by design — they still respect
+      // doors and the room bounds, just not the furniture they lie under.
+      occupied: lowProfile ? [] : occupied,
       roomBounds,
       along: placement.along,
       inward: placement.inward,
@@ -860,7 +884,7 @@ export async function furnishRoom(bridge: SceneOperations, args: FurnishRoomArgs
     const { x, z, rotationDeg } = resolved.candidate
     const rotRad = (rotationDeg * Math.PI) / 180
     const planAabb = itemPlanAabb([x, 0, z], asset.dimensions, rotRad)
-    occupied.push(planAabb)
+    if (!lowProfile) occupied.push(planAabb)
     items.push(
       ItemNode.parse({
         name: asset.name,
