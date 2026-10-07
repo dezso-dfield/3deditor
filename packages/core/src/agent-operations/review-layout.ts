@@ -149,7 +149,12 @@ export const reviewLayout: AgentOperation<ReviewLayoutInput> = (nodes, input) =>
   const stats = { items: 0, seats: 0, tables: 0, zones: 0 }
 
   for (const levelId of levelIds) {
-    const onLevel = nodesOnLevel(nodes, levelId)
+    // The level node itself must be in the list: door/overlap checks resolve a
+    // node's level through parent links and silently drop nodes they cannot place.
+    const levelNodeForChecks = nodes[levelId]
+    const onLevel = levelNodeForChecks
+      ? [levelNodeForChecks, ...nodesOnLevel(nodes, levelId)]
+      : nodesOnLevel(nodes, levelId)
     const walls: WallSeg[] = onLevel
       .filter((n): n is AnyNode & { type: 'wall' } => n.type === 'wall')
       .map((w) => ({ id: w.id, start: w.start, end: w.end }))

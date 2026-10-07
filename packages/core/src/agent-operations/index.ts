@@ -3,6 +3,7 @@ import { deleteNode } from './delete-node'
 import { duplicateLevel } from './duplicate-level'
 import { findByType } from './find-by-type'
 import { getNode } from './get-node'
+import { improveLayout } from './improve-layout'
 import { getLevelSummary, getWalls, getZones } from './level-reads'
 import { listLevels } from './list-levels'
 import { orientItem } from './orient-item'
@@ -23,6 +24,7 @@ export * from './duplicate-level'
 export * from './find-by-type'
 export * from './get-node'
 export * from './hosted-services'
+export * from './improve-layout'
 export * from './item-facing'
 export * from './layout-clearance'
 export * from './level-reads'
@@ -54,6 +56,7 @@ export const AGENT_OPERATIONS = {
   find_by_type: findByType,
   orient_item: orientItem,
   review_layout: reviewLayout,
+  improve_layout: improveLayout,
   update_room: updateRoom,
   apply_style: applyStyle,
   generate_schedule: generateSchedule,

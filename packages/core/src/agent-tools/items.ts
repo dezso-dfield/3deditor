@@ -43,6 +43,17 @@ export const orientItemTool = {
   },
 }
 
+export const improveLayoutTool = {
+  name: 'improve_layout',
+  title: 'Improve layout',
+  description:
+    "Act on review_layout's findings instead of only listing them: seats are rotated to face their table, items whose front faces a wall are turned around, beds and storage are pushed flush to the nearest wall, and items blocking doors or walkways are slid into the room. Every change is validated against overlaps and door keep-outs before it lands; what cannot be moved safely comes back under `unfixed` with the reason. Run review_layout afterwards to confirm, then decorate_room for styling.",
+  input: {
+    levelId: NodeId.optional().describe('Improve one level. Default: every occupied level.'),
+    zoneId: NodeId.optional().describe('Improve only the zone (room) with this id.'),
+  },
+}
+
 export const reviewLayoutTool = {
   name: 'review_layout',
   title: 'Review layout',

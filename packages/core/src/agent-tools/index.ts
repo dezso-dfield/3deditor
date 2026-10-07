@@ -2,7 +2,7 @@ import { addObjectTool, getSourceTool } from './add-object'
 import { editCollectionTool, listCollectionsTool } from './collections'
 import { addColumnTool } from './columns'
 import { findByTypeTool } from './find-by-type'
-import { orientItemTool, reviewLayoutTool } from './items'
+import { improveLayoutTool, orientItemTool, reviewLayoutTool } from './items'
 import {
   duplicateLevelTool,
   getLevelSummaryTool,
@@ -56,5 +56,6 @@ export const AGENT_TOOL_CONTRACTS = [
   listCollectionsTool,
   orientItemTool,
   reviewLayoutTool,
+  improveLayoutTool,
   updateRoomTool,
 ] as const

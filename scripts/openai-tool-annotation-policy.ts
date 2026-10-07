@@ -67,6 +67,7 @@ export const EXPECTED_OPENAI_TOOL_ANNOTATIONS = {
   list_scenes: policy(true, false, false),
   list_templates: policy(true, false, false),
   list_units: policy(true, false, false),
+  improve_layout: policy(false, true, false),
   load_scene: policy(false, true, false),
   lock_outside_faces: policy(false, true, false),
   materials_takeoff: policy(true, false, false),

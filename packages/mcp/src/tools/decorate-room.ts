@@ -412,18 +412,46 @@ export function registerDecorateRoom(server: McpServer, bridge: SceneOperations)
       const showerOrTub = byAssetId(/shower|bathtub|shower-square|tub/)
 
       switch (roomType) {
-        case 'living': {
-          if (sofa) artAboveItem(sofa, 'sofa')
-          if (coffeeTable) {
-            pendantOver(coffeeTable, 'coffee table')
-            onSurface(coffeeTable, 'books', 'books on the coffee table')
-            if (!hasRug && area >= 6) {
-              const frame = frameOf(coffeeTable)
-              if (frame) floorDecor('round-carpet', frame.x, frame.z, 0, 'rug under the seating')
+        case 'kitchen': {
+          const counter = counters[0]
+          if (counter) {
+            onSurface(counter, 'fruits', 'fruit bowl on the counter')
+            onSurface(counter, 'kettle', 'kettle on the counter')
+            onSurface(counter, 'coffee-machine', 'coffee machine on the counter')
+            if (depth !== 'light') {
+              onSurface(counter, 'toaster', 'toaster on the counter')
+              onSurface(counter, 'microwave', 'microwave on the counter')
+              onSurface(counter, 'kitchen-utensils', 'utensils on the counter')
+              onSurface(counter, 'cutting-board', 'cutting board on the counter')
+            }
+            const frame = frameOf(counter)
+            const back = frame ? wallBehind(frame, counter, walls) : undefined
+            if (back) {
+              const localX = projectWorldPointToWallLocalX(back.wall.node, [frame!.x, 0, frame!.z])
+              wallMount(
+                back.wall,
+                localX,
+                'kitchen-shelf',
+                KITCHEN_SHELF_HEIGHT,
+                'shelf above the counter',
+              )
+            }
+          } else {
+            suggested.push('dress the kitchen counters once a counter or kitchen unit exists')
+          }
+          const stove = byAssetId(/stove|oven|kitchen$/)[0]
+          if (stove) {
+            const sframe = frameOf(stove)
+            const sback = sframe ? wallBehind(sframe, stove, walls) : undefined
+            if (sback) {
+              const localX = projectWorldPointToWallLocalX(sback.wall.node, [
+                sframe!.x,
+                0,
+                sframe!.z,
+              ])
+              wallMount(sback.wall, localX, 'hood', 1.6, 'extractor hood above the stove')
             }
           }
-          const tvStand = byAssetId('tv-stand')[0]
-          if (tvStand) onSurface(tvStand, 'small-indoor-plant', 'plant on the TV stand')
           break
         }
         case 'bedroom': {
@@ -454,29 +482,39 @@ export function registerDecorateRoom(server: McpServer, bridge: SceneOperations)
           else suggested.push('hang a picture — every dining wall span is taken')
           break
         }
-        case 'kitchen': {
-          const counter = counters[0]
-          if (counter) {
-            onSurface(counter, 'fruits', 'fruit bowl on the counter')
-            onSurface(counter, 'kettle', 'kettle on the counter')
-            if (depth !== 'light') {
-              onSurface(counter, 'kitchen-utensils', 'utensils on the counter')
-              onSurface(counter, 'cutting-board', 'cutting board on the counter')
+        case 'living': {
+          if (sofa) artAboveItem(sofa, 'sofa')
+          if (coffeeTable) {
+            pendantOver(coffeeTable, 'coffee table')
+            onSurface(coffeeTable, 'books', 'books on the coffee table')
+            if (!hasRug && area >= 6) {
+              const frame = frameOf(coffeeTable)
+              if (frame) floorDecor('round-carpet', frame.x, frame.z, 0, 'rug under the seating')
             }
-            const frame = frameOf(counter)
-            const back = frame ? wallBehind(frame, counter, walls) : undefined
-            if (back) {
-              const localX = projectWorldPointToWallLocalX(back.wall.node, [frame!.x, 0, frame!.z])
-              wallMount(
-                back.wall,
-                localX,
-                'kitchen-shelf',
-                KITCHEN_SHELF_HEIGHT,
-                'shelf above the counter',
+          }
+          const tvStand = byAssetId('tv-stand')[0]
+          if (tvStand) {
+            onSurface(tvStand, 'small-indoor-plant', 'plant on the TV stand')
+            const frame = frameOf(tvStand)
+            if (frame) {
+              const dir = frontDir(frame.yaw, tvStand.asset?.front ?? 'z+')
+              const px: Vec2 = [-dir[1], dir[0]]
+              const w = (tvStand.asset?.dimensions?.[0] ?? 1.2) / 2 + 0.3
+              floorDecor(
+                'stereo-speaker',
+                frame.x + px[0] * w,
+                frame.z + px[1] * w,
+                (frame.yaw * 180) / Math.PI,
+                'speaker beside the TV stand',
+              )
+              floorDecor(
+                'stereo-speaker',
+                frame.x - px[0] * w,
+                frame.z - px[1] * w,
+                (frame.yaw * 180) / Math.PI,
+                'speaker beside the TV stand',
               )
             }
-          } else {
-            suggested.push('dress the kitchen counters once a counter or kitchen unit exists')
           }
           break
         }
@@ -543,6 +581,7 @@ export function registerDecorateRoom(server: McpServer, bridge: SceneOperations)
         case 'office': {
           if (desk) {
             artAboveItem(desk, 'desk')
+            onSurface(desk, 'computer', 'computer on the desk')
             onSurface(desk, 'books', 'books on the desk')
             if (depth !== 'light') onSurface(desk, 'cactus', 'plant on the desk')
           }
@@ -565,8 +604,46 @@ export function registerDecorateRoom(server: McpServer, bridge: SceneOperations)
           break
         }
         case 'laundry': {
-          if (depth !== 'light')
+          if (depth !== 'light') {
             leanAgainstWall('laundry-bag', 0.6, 0.45, 'laundry bag by the wall')
+            const board = byAssetId('ironing-board')[0]
+            if (board) onSurface(board, 'iron', 'iron on the ironing board')
+          }
+          break
+        }
+        case 'kids': {
+          const bunk = byAssetId(/bunkbed|bed/)[0]
+          if (bunk) artAboveItem(bunk, 'bed')
+          if (depth !== 'light') {
+            const spot = freeWallCenter(0.7)
+            if (spot)
+              wallMount(
+                spot.wall,
+                spot.localX,
+                'wall-art-06',
+                ART_BOTTOM_HEIGHT,
+                'playful art on the wall',
+              )
+            floorDecor('toy', bounds.centerX + 0.4, bounds.centerZ, 30, 'toy on the floor')
+          }
+          break
+        }
+        case 'gym': {
+          leanAgainstWall('rectangular-mirror', 1.2, 0.2, 'mirror panel on the free wall')
+          break
+        }
+        case 'game': {
+          const pool = byAssetId('pool-table')[0]
+          if (pool) pendantOver(pool, 'pool table')
+          const spot = freeWallCenter(1.4)
+          if (spot)
+            wallMount(
+              spot.wall,
+              spot.localX,
+              'picture',
+              ART_BOTTOM_HEIGHT,
+              'art on the game-room wall',
+            )
           break
         }
       }
