@@ -41,6 +41,39 @@ export const getZonesTool = {
   input: levelTarget,
 }
 
+export const updateRoomTool = {
+  name: 'update_room',
+  title: 'Update room',
+  description:
+    'Name or re-label a room (zone): its display name, roomType (the occupancy label the schedule and furnish_room read — bedroom, kitchen, living, dining, bathroom, office …), roomNumber, ceilingHeight, and the floor/wall/ceiling finish notes. Setting any of these marks the zone a documented room. Read names, types and sizes back with get_zones.',
+  input: {
+    zoneId: NodeId.describe('The room (zone) to update, by an id get_zones returned.'),
+    name: z.string().min(1).max(120).optional().describe('Display name, e.g. "Primary Bedroom".'),
+    roomType: z
+      .string()
+      .min(1)
+      .max(80)
+      .optional()
+      .describe(
+        'Room use label stored as the zone occupancy — what furnish_room infers its layout from and what room schedules print, e.g. "bedroom", "kitchen", "living".',
+      ),
+    roomNumber: z
+      .string()
+      .max(32)
+      .optional()
+      .describe('Plan room number, e.g. "101". Pass "" to clear.'),
+    ceilingHeight: z
+      .number()
+      .min(0.1)
+      .max(10)
+      .optional()
+      .describe('Room ceiling height in metres (default 2.7).'),
+    floorFinish: z.string().max(120).optional().describe('Floor finish note, e.g. "oak parquet".'),
+    wallFinish: z.string().max(120).optional().describe('Wall finish note.'),
+    ceilingFinish: z.string().max(120).optional().describe('Ceiling finish note.'),
+  },
+}
+
 export const duplicateLevelTool = {
   name: 'duplicate_level',
   title: 'Duplicate level',

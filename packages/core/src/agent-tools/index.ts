@@ -2,12 +2,14 @@ import { addObjectTool, getSourceTool } from './add-object'
 import { editCollectionTool, listCollectionsTool } from './collections'
 import { addColumnTool } from './columns'
 import { findByTypeTool } from './find-by-type'
+import { orientItemTool, reviewLayoutTool } from './items'
 import {
   duplicateLevelTool,
   getLevelSummaryTool,
   getWallsTool,
   getZonesTool,
   listLevelsTool,
+  updateRoomTool,
   verifySceneTool,
 } from './levels'
 import { deleteNodeTool, getNodeTool } from './nodes'
@@ -19,6 +21,7 @@ export * from './collections'
 export * from './columns'
 export * from './find-by-type'
 export * from './hosted-services'
+export * from './items'
 export * from './levels'
 export * from './measurement'
 export { NodeId } from './node-id'
@@ -51,4 +54,7 @@ export const AGENT_TOOL_CONTRACTS = [
   findByTypeTool,
   editCollectionTool,
   listCollectionsTool,
+  orientItemTool,
+  reviewLayoutTool,
+  updateRoomTool,
 ] as const

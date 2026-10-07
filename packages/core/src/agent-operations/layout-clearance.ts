@@ -9,6 +9,7 @@
  */
 
 import type { AnyNode } from '../schema'
+import { isLowProfileItemSurface } from '../schema/nodes/item'
 import {
   aabbsOverlap,
   findBlockedDoors,
@@ -17,6 +18,7 @@ import {
   type PlanAabb,
   resolveNodeLevelId,
 } from './door-clearance'
+import { itemWorldPlan } from './item-facing'
 
 export {
   aabbsOverlap,
@@ -64,6 +66,8 @@ export function collectOccupiedFootprints(
   for (const node of list) {
     if (node.type !== 'item') continue
     if (options?.excludeIds?.has(node.id)) continue
+    // Low-profile surfaces (rugs, mats) host furniture visually and never block it.
+    if (isLowProfileItemSurface(node)) continue
     const attach = node.asset?.attachTo
     if (
       options?.floorOnly &&
@@ -79,7 +83,17 @@ export function collectOccupiedFootprints(
       // Wall-parented items without attachTo still skipped for floor packing.
       if (byId.get(node.parentId)?.type === 'wall') continue
     }
-    const aabb = nodeItemAabb(node)
+    const parent = node.parentId ? byId.get(node.parentId) : undefined
+    const aabb =
+      parent?.type === 'item'
+        ? (() => {
+            // Item-hosted children store position in the host's frame; the
+            // world frame carries the host's position and yaw through.
+            const frame = itemWorldPlan(byId, node)
+            if (!frame) return null
+            return itemPlanAabb([frame.x, 0, frame.z], node.asset.dimensions, frame.yaw)
+          })()
+        : nodeItemAabb(node)
     if (!aabb) continue
     const name = node.name ?? node.asset?.name
     out.push({

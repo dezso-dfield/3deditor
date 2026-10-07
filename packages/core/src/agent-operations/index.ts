@@ -4,7 +4,10 @@ import { findByType } from './find-by-type'
 import { getNode } from './get-node'
 import { getLevelSummary, getWalls, getZones } from './level-reads'
 import { listLevels } from './list-levels'
+import { orientItem } from './orient-item'
+import { reviewLayout } from './review-layout'
 import { fitStair, measureStairOperation } from './stairs'
+import { updateRoom } from './update-room'
 import { verifyScene } from './verify-scene'
 
 export * from './add-column'
@@ -17,15 +20,19 @@ export * from './duplicate-level'
 export * from './find-by-type'
 export * from './get-node'
 export * from './hosted-services'
+export * from './item-facing'
 export * from './layout-clearance'
 export * from './level-reads'
 export * from './level-target'
 export * from './list-levels'
 export * from './material-preset'
+export * from './orient-item'
 export * from './plan-geometry'
+export * from './review-layout'
 export * from './scene-queries'
 export * from './stairs'
 export * from './types'
+export * from './update-room'
 export * from './verify-scene'
 
 /** Each shared agent tool's operation, by tool name: what every surface executes. */
@@ -41,4 +48,7 @@ export const AGENT_OPERATIONS = {
   verify_scene: verifyScene,
   delete_node: deleteNode,
   find_by_type: findByType,
+  orient_item: orientItem,
+  review_layout: reviewLayout,
+  update_room: updateRoom,
 } as const

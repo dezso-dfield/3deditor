@@ -454,4 +454,95 @@ describe('room tools', () => {
       expect(doorSkips.length).toBe(0)
     }
   })
+
+  test('furnish_room dining chairs face the table', async () => {
+    const level = Object.values(bridge.getNodes()).find((n) => n.type === 'level')!
+    const roomResult = await client.callTool({
+      name: 'create_room',
+      arguments: {
+        levelId: level.id,
+        name: 'Dining',
+        polygon: [
+          [0, 0],
+          [5, 0],
+          [5, 5],
+          [0, 5],
+        ],
+      },
+    })
+    const room = JSON.parse((roomResult.content as Array<{ type: string; text: string }>)[0]!.text)
+    const furnish = await client.callTool({
+      name: 'furnish_room',
+      arguments: { zoneId: room.zoneId, roomType: 'dining' },
+    })
+    expect(furnish.isError).toBeFalsy()
+    const nodes = Object.values(bridge.getNodes())
+    const table = nodes.find((n) => n.type === 'item' && n.asset?.id === 'dining-table') as {
+      position: [number, number, number]
+    }
+    const chairs = nodes.filter((n) => n.type === 'item' && n.asset?.id === 'dining-chair') as {
+      position: [number, number, number]
+      rotation: [number, number, number]
+    }[]
+    expect(chairs.length).toBeGreaterThanOrEqual(4)
+    for (const chair of chairs) {
+      const toTable = [table.position[0] - chair.position[0], table.position[2] - chair.position[2]]
+      const front = [Math.sin(chair.rotation[1]), Math.cos(chair.rotation[1])]
+      const dot = (front[0] * toTable[0] + front[1] * toTable[1]) / (Math.hypot(...toTable) || 1)
+      expect(dot).toBeGreaterThan(0.7)
+    }
+  })
+
+  test('furnish_room furnishes an office', async () => {
+    const level = Object.values(bridge.getNodes()).find((n) => n.type === 'level')!
+    const furnish = await client.callTool({
+      name: 'furnish_room',
+      arguments: {
+        levelId: level.id,
+        roomType: 'office',
+        polygon: [
+          [0, 0],
+          [4, 0],
+          [4, 4],
+          [0, 4],
+        ],
+      },
+    })
+    expect(furnish.isError).toBeFalsy()
+    const ids = Object.values(bridge.getNodes())
+      .filter((n) => n.type === 'item')
+      .map((n) => n.asset?.id)
+    expect(ids).toContain('desk')
+    expect(ids).toContain('office-chair')
+  })
+
+  test('furnish_room infers the layout from the zone occupancy', async () => {
+    const level = Object.values(bridge.getNodes()).find((n) => n.type === 'level')!
+    const roomResult = await client.callTool({
+      name: 'create_room',
+      arguments: {
+        levelId: level.id,
+        name: 'Bedroom',
+        polygon: [
+          [0, 0],
+          [5, 0],
+          [5, 4],
+          [0, 4],
+        ],
+      },
+    })
+    const room = JSON.parse((roomResult.content as Array<{ type: string; text: string }>)[0]!.text)
+    bridge.updateNode(room.zoneId as AnyNodeId, { occupancy: 'bedroom' })
+    const furnish = await client.callTool({
+      name: 'furnish_room',
+      arguments: { zoneId: room.zoneId },
+    })
+    expect(furnish.isError).toBeFalsy()
+    const parsed = JSON.parse((furnish.content as Array<{ type: string; text: string }>)[0]!.text)
+    expect(parsed.roomType).toBe('bedroom')
+    const ids = Object.values(bridge.getNodes())
+      .filter((n) => n.type === 'item')
+      .map((n) => n.asset?.id)
+    expect(ids).toContain('double-bed')
+  })
 })

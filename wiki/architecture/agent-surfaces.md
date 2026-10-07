@@ -56,3 +56,15 @@ Hosted service tools have public contracts in `core/agent-tools` and a shared re
 | `fit_stair` | `fitStairTool` in `core/agent-tools` | `AGENT_OPERATIONS.fit_stair` | Shared-tool adapter; applies the planned changes atomically | Needs hosted-chat registration and executor port (companion change in private-editor) |
 
 Both surfaces use the zod-only `@pascal-app/core/agent-tools` contracts and the plans in `@pascal-app/core/agent-operations`. The hosted-chat port needs registration, executor integration and parity tests. The published `pascal-3d` skill and MCP agent guide describe the same sizing, winder and measurement semantics. Design targets are preferences, not code certification; measurement reports only the modeled obstacles it supports.
+
+## Design capability parity
+
+| Capability | Shared contract | Shared operation | MCP | Hosted AI chat |
+|---|---|---|---|---|
+| Item facing | `facing` input on `placeItemTool` | `resolveFacingYaw` in `core/agent-operations/item-facing` | `place_item` accepts `{mode:"point"\|"node"\|"away"}` | Needs hosted-chat registration and executor port (companion change in private-editor) |
+| `orient_item` | `orientItemTool` in `core/agent-tools` | `AGENT_OPERATIONS.orient_item` | Shared-tool adapter | Needs hosted-chat registration and executor port (companion change in private-editor) |
+| `review_layout` | `reviewLayoutTool` in `core/agent-tools` | `AGENT_OPERATIONS.review_layout` | Shared-tool adapter | Needs hosted-chat registration and executor port (companion change in private-editor) |
+| `update_room` + room facts | `updateRoomTool`, `getZonesTool` in `core/agent-tools` | `AGENT_OPERATIONS.update_room`, `get_zones` zone info | Shared-tool adapters | Needs hosted-chat registration and executor port (companion change in private-editor) |
+| `walkthrough_to_room` | Local tool in `packages/mcp/src/tools/vision` | Sampling call + catalog placement in the same module | Vision tool; needs a sampling-capable host | MCP-only for now: the chat's vision path is hosted and does not need this contract |
+
+Front direction (the item's local +Z at yaw 0, or its declared `asset.front`), `asset.clearance` and `asset.role` are contract-level design metadata on the item schema, shared by `place_item`, `orient_item`, `review_layout` and `furnish_room`. `review_layout` checks door blocking, overlaps, front clearance, seating-to-table facing, wall-facing and walkways — it does not move nodes. The `pascal-3d` skill and the agent guide teach the same room/design workflow.

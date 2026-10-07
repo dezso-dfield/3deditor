@@ -18,6 +18,12 @@ export const ADDITIVE_TOOL_ANNOTATIONS = {
   openWorldHint: false,
 } as const
 
+export const ADDITIVE_OPEN_WORLD_TOOL_ANNOTATIONS = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  openWorldHint: true,
+} as const
+
 export const DESTRUCTIVE_TOOL_ANNOTATIONS = {
   readOnlyHint: false,
   destructiveHint: true,

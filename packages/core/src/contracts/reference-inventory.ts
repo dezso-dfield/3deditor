@@ -961,6 +961,10 @@ export const METADATA_NON_REFERENCES: readonly { path: string; reason: string }[
     'roomType',
     'mcpTool',
   ]),
+  ...described('Vision-pipeline provenance: a detected label and a score, not ids.', [
+    'visionLabel',
+    'visionConfidence',
+  ]),
   ...described('IFC attribute copy: a value or IFC label, not an id.', [
     'elevation',
     'height',
