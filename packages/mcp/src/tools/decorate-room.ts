@@ -790,8 +790,8 @@ export async function decorateRoom(bridge: SceneOperations, args: DecorateRoomAr
     const resolved = findValidPlacement({
       primary: { x: w.x, z: w.z, rotationDeg: w.rotationDeg ?? 0 },
       dimensions: asset.dimensions,
-      doorKeepouts,
-      // Rugs slide under furniture by design; doors and room bounds still apply.
+      doorKeepouts: lowProfile ? [] : doorKeepouts,
+      // Rugs slide under furniture by design; room bounds still apply.
       occupied: lowProfile ? [] : occupied,
       roomBounds,
       ...(w.along ? { along: w.along } : {}),

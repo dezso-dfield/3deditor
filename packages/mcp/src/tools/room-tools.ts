@@ -324,18 +324,19 @@ function buildRoomPlacements(
       break
     case 'living': {
       addBack('sofa', 0.9)
-      addBack('coffee-table', 2.1)
+      // ~0.5 m between sofa front and table edge — reach distance, not knees.
+      addBack('coffee-table', 2.45)
       {
         // The accent chair angles toward the coffee table like a designer would
         // set it, not perpendicular to its own wall.
         const [chairX, chairZ] = sidePos(0.85, -sideAlongLen * 0.18)
-        const [tableX, tableZ] = backPos(2.1)
+        const [tableX, tableZ] = backPos(2.45)
         const chairRot = (Math.atan2(tableX - chairX, tableZ - chairZ) * 180) / Math.PI
         addSide('livingroom-chair', 0.85, -sideAlongLen * 0.18, chairRot)
       }
       // The rug centers under the coffee table; a lamp and a plant fill the
       // back corners when the room can take them.
-      if (area >= 8) addBack('rectangular-carpet', 2.1)
+      if (area >= 8) addBack('rectangular-carpet', 2.45)
       if (area >= 9) {
         addBack('floor-lamp', 0.4, -(alongLen / 2 - 0.55))
         addBack('indoor-plant', 0.45, alongLen / 2 - 0.55)
@@ -350,10 +351,14 @@ function buildRoomPlacements(
       // Door-wall inward is opposite of "back wall" inward (into room from door).
       const doorInX = -inX
       const doorInZ = -inZ
+      // The media wall sits beside the door swing, never dead-center in the
+      // walkway a designer would keep clear: stand edge outside the ±0.45 m
+      // door keep-out (0.93 half-width + margin) while still on the wall.
+      const tvLat = Math.min(1.5, Math.max(alongLen / 2 - 1.0, 0))
       placements.push({
         assetId: 'tv-stand',
-        x: doorMidX + doorInX * 0.35,
-        z: doorMidZ + doorInZ * 0.35,
+        x: doorMidX + doorInX * 0.35 + ax * tvLat,
+        z: doorMidZ + doorInZ * 0.35 + az * tvLat,
         rotationDeg: facingRot + 180,
         along: { x: ax, z: az },
         inward: { x: doorInX, z: doorInZ },
@@ -861,9 +866,9 @@ export async function furnishRoom(bridge: SceneOperations, args: FurnishRoomArgs
     const resolved = findValidPlacement({
       primary,
       dimensions: asset.dimensions,
-      doorKeepouts: doorKeepoutAabbs,
-      // Rugs sit under furniture footprints by design — they still respect
-      // doors and the room bounds, just not the furniture they lie under.
+      // Rugs sit under furniture footprints by design and a door swings clear
+      // of a low rug — they still respect the room bounds.
+      doorKeepouts: lowProfile ? [] : doorKeepoutAabbs,
       occupied: lowProfile ? [] : occupied,
       roomBounds,
       along: placement.along,

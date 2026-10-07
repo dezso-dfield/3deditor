@@ -238,7 +238,10 @@ export const reviewLayout: AgentOperation<ReviewLayoutInput> = (nodes, input) =>
     }
     stats.items += scoped.length
 
-    const others = (self: ScopedItem) => scoped.filter((o) => o.node.id !== self.node.id)
+    // An item hosted on another (a TV on its stand, books on the table) sits
+    // on the host by design — it can never be inside the host's clearance.
+    const others = (self: ScopedItem) =>
+      scoped.filter((o) => o.node.id !== self.node.id && o.node.parentId !== self.node.id)
     const aabbOf = (item: ScopedItem) =>
       aabbOfPoints(
         itemFootprintCorners(
