@@ -6,6 +6,7 @@ import { getLevelSummary, getWalls, getZones } from './level-reads'
 import { listLevels } from './list-levels'
 import { orientItem } from './orient-item'
 import { reviewLayout } from './review-layout'
+import { generateSchedule, materialsTakeoff } from './schedules'
 import { fitStair, measureStairOperation } from './stairs'
 import { updateRoom } from './update-room'
 import { verifyScene } from './verify-scene'
@@ -30,6 +31,7 @@ export * from './orient-item'
 export * from './plan-geometry'
 export * from './review-layout'
 export * from './scene-queries'
+export * from './schedules'
 export * from './stairs'
 export * from './types'
 export * from './update-room'
@@ -51,4 +53,6 @@ export const AGENT_OPERATIONS = {
   orient_item: orientItem,
   review_layout: reviewLayout,
   update_room: updateRoom,
+  generate_schedule: generateSchedule,
+  materials_takeoff: materialsTakeoff,
 } as const

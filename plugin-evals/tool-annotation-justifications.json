@@ -462,6 +462,19 @@
       }
     },
     {
+      "name": "generate_schedule",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "justifications": {
+        "readOnlyHint": "It reads the scene and prints room, door, window and item schedule rows without changing scene or project state.",
+        "destructiveHint": "It does not create, update, replace, delete, load, or save Pascal scene or project state.",
+        "openWorldHint": "It operates only on data supplied by or already available inside the connected Pascal service and does not access the public internet."
+      }
+    },
+    {
       "name": "generate_variants",
       "annotations": {
         "readOnlyHint": false,
@@ -654,6 +667,19 @@
         "readOnlyHint": "Updates exterior wall justification and connected reference lines in the scene.",
         "destructiveHint": "Replaces existing wall geometry intent so later thickness edits keep the outside face fixed.",
         "openWorldHint": "Uses only the connected scene; no public internet access."
+      }
+    },
+    {
+      "name": "materials_takeoff",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "justifications": {
+        "readOnlyHint": "It reads the scene and prints quantity takeoff totals without changing scene or project state.",
+        "destructiveHint": "It does not create, update, replace, delete, load, or save Pascal scene or project state.",
+        "openWorldHint": "It operates only on data supplied by or already available inside the connected Pascal service and does not access the public internet."
       }
     },
     {
