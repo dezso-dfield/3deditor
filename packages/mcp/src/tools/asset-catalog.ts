@@ -1214,7 +1214,6 @@ export const MCP_CATALOG_ITEMS: AssetInput[] = [
     offset: [0, 0, 0],
     rotation: [0, 0, 0],
     scale: [1, 1, 1],
-    attachTo: 'surface',
     role: 'decor',
   },
   {
