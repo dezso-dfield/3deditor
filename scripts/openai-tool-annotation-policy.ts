@@ -68,6 +68,7 @@ export const EXPECTED_OPENAI_TOOL_ANNOTATIONS = {
   measure: policy(true, false, false),
   merge_zones: policy(false, true, false),
   move_zone: policy(false, true, false),
+  orient_item: policy(false, true, false),
   photo_to_scene: policy(false, true, true),
   place_design: policy(false, false, false),
   place_item: policy(false, false, false),
@@ -75,6 +76,7 @@ export const EXPECTED_OPENAI_TOOL_ANNOTATIONS = {
   redo: policy(false, true, false),
   remove_floor_opening: policy(false, true, false),
   rename_scene: policy(false, true, false),
+  review_layout: policy(true, false, false),
   rotate_zone: policy(false, true, false),
   save_scene: policy(false, true, false),
   search_assets: policy(true, false, false),
@@ -84,9 +86,11 @@ export const EXPECTED_OPENAI_TOOL_ANNOTATIONS = {
   set_zone: policy(false, false, false),
   set_zone_intent: policy(false, false, false),
   undo: policy(false, true, false),
+  update_room: policy(false, true, false),
   validate_design: policy(true, false, false),
   validate_scene: policy(true, false, false),
   verify_scene: policy(true, false, false),
+  walkthrough_to_room: policy(false, false, true),
 } as const satisfies Record<string, ToolAnnotations>
 
 const exactKeys = (value: Record<string, unknown>, expected: readonly string[]): boolean => {
