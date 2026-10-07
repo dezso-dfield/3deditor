@@ -629,4 +629,129 @@ describe('room tools', () => {
     })
     expect(missing.isError).toBeTruthy()
   })
+
+  test('furnish_room puts the shower in a corner of a small bathroom', async () => {
+    const level = Object.values(bridge.getNodes()).find((n) => n.type === 'level')!
+    const result = await client.callTool({
+      name: 'furnish_room',
+      arguments: {
+        levelId: level.id,
+        roomType: 'bathroom',
+        polygon: [
+          [0, 0],
+          [2.4, 0],
+          [2.4, 2.4],
+          [0, 2.4],
+        ],
+        doorWallIndex: 0,
+      },
+    })
+    expect(result.isError).toBeFalsy()
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0]!.text)
+    const shower = parsed.itemIds
+      .map((id: string) => bridge.getNode(id as AnyNodeId)!)
+      .find((n) => n.asset?.id === 'shower-angle')
+    expect(shower).toBeTruthy()
+    // Corner placement — not the old dead-centre of the room.
+    const distFromCentre = Math.hypot(shower.position[0] - 1.2, shower.position[2] - 1.2)
+    expect(distFromCentre).toBeGreaterThan(0.4)
+  })
+
+  test('furnish_room angles the accent chair toward the coffee table and centres the rug', async () => {
+    const level = Object.values(bridge.getNodes()).find((n) => n.type === 'level')!
+    const result = await client.callTool({
+      name: 'furnish_room',
+      arguments: {
+        levelId: level.id,
+        roomType: 'living',
+        polygon: [
+          [0, 0],
+          [5, 0],
+          [5, 4],
+          [0, 4],
+        ],
+        doorWallIndex: 0,
+      },
+    })
+    expect(result.isError).toBeFalsy()
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0]!.text)
+    const items = parsed.itemIds.map((id: string) => bridge.getNode(id as AnyNodeId)!)
+    const chair = items.find((n) => n.asset?.id === 'livingroom-chair')
+    const table = items.find((n) => n.asset?.id === 'coffee-table')
+    const rug = items.find((n) => n.asset?.id === 'rectangular-carpet')
+    expect(chair && table && rug).toBeTruthy()
+
+    // The chair's +Z front points at the coffee table, not flat along its wall.
+    const yaw = chair.rotation?.[1] ?? 0
+    const frontX = Math.sin(yaw)
+    const frontZ = Math.cos(yaw)
+    const toX = table.position[0] - chair.position[0]
+    const toZ = table.position[2] - chair.position[2]
+    const len = Math.hypot(toX, toZ)
+    const dot = (frontX * toX + frontZ * toZ) / len
+    expect(dot).toBeGreaterThan(0.5)
+
+    // The rug lies under the coffee table.
+    expect(Math.abs(rug.position[0] - table.position[0])).toBeLessThan(0.05)
+    expect(Math.abs(rug.position[2] - table.position[2])).toBeLessThan(0.05)
+  })
+
+  test('furnish_room seats two dining chairs per side in a wide room', async () => {
+    const level = Object.values(bridge.getNodes()).find((n) => n.type === 'level')!
+    const result = await client.callTool({
+      name: 'furnish_room',
+      arguments: {
+        levelId: level.id,
+        roomType: 'dining',
+        polygon: [
+          [0, 0],
+          [4.2, 0],
+          [4.2, 3.6],
+          [0, 3.6],
+        ],
+        doorWallIndex: 0,
+      },
+    })
+    expect(result.isError).toBeFalsy()
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0]!.text)
+    const chairs = parsed.itemIds
+      .map((id: string) => bridge.getNode(id as AnyNodeId)!)
+      .filter((n) => n.asset?.id === 'dining-chair')
+    // Two per long side + two heads.
+    expect(chairs.length).toBe(6)
+  })
+
+  test('decorate_room sets the television on the tv stand and a rug under the dining table', async () => {
+    const level = Object.values(bridge.getNodes()).find((n) => n.type === 'level')!
+    const roomResult = await client.callTool({
+      name: 'create_room',
+      arguments: {
+        levelId: level.id,
+        name: 'Living room',
+        polygon: [
+          [0, 0],
+          [5, 0],
+          [5, 4],
+          [0, 4],
+        ],
+      },
+    })
+    const room = JSON.parse((roomResult.content as Array<{ type: string; text: string }>)[0]!.text)
+    const furnish = await client.callTool({
+      name: 'furnish_room',
+      arguments: { zoneId: room.zoneId, roomType: 'living', doorWallIndex: 0 },
+    })
+    expect(furnish.isError).toBeFalsy()
+    const result = await client.callTool({
+      name: 'decorate_room',
+      arguments: { zoneId: room.zoneId },
+    })
+    expect(result.isError).toBeFalsy()
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0]!.text)
+    const created = parsed.itemIds.map((id: string) => bridge.getNode(id as AnyNodeId)!)
+    const tv = created.find((n) => n.asset?.id === 'television')
+    expect(tv).toBeTruthy()
+    const stand = Object.values(bridge.getNodes()).find((n) => n.asset?.id === 'tv-stand')
+    expect(tv.parentId).toBe(stand!.id)
+  })
 })

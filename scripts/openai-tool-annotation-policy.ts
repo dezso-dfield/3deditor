@@ -46,6 +46,7 @@ export const EXPECTED_OPENAI_TOOL_ANNOTATIONS = {
   decorate_room: policy(false, false, false),
   delete_scene: policy(false, true, false),
   delete_zone: policy(false, true, false),
+  design_room: policy(false, true, false),
   divide_zone: policy(false, true, false),
   describe_node: policy(true, false, false),
   duplicate_level: policy(false, false, false),

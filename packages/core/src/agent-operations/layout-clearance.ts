@@ -113,12 +113,19 @@ export function findItemItemCollisions(args: {
 }): ItemCollision[] {
   const gap = args.gap ?? DEFAULT_ITEM_GAP
   const footprints = collectOccupiedFootprints(args.nodes, { levelId: args.levelId })
+  const byId = new Map<string, AnyNode>([...args.nodes].map((n) => [n.id, n]))
+  const isCeilingChild = (id: string) => byId.get(byId.get(id)?.parentId ?? '')?.type === 'ceiling'
   const collisions: ItemCollision[] = []
   for (let i = 0; i < footprints.length; i++) {
     for (let j = i + 1; j < footprints.length; j++) {
       const a = footprints[i]!
       const b = footprints[j]!
       if (a.levelId && b.levelId && a.levelId !== b.levelId) continue
+      // A surface child shares its host's footprint by design (a TV on the
+      // stand, books on the table), and a ceiling piece shares the plan with
+      // whatever it hangs above — neither is a plan-space collision.
+      if (byId.get(a.id)?.parentId === b.id || byId.get(b.id)?.parentId === a.id) continue
+      if (isCeilingChild(a.id) || isCeilingChild(b.id)) continue
       if (!aabbsOverlap(a.aabb, b.aabb, gap)) continue
       collisions.push({
         aId: a.id,
