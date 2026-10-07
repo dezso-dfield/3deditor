@@ -2,6 +2,7 @@
 import { spawn } from 'node:child_process'
 import { parseArgs } from 'node:util'
 import { agentClaimHandoffUrl, getAgentStatus, startAgentClaim } from '../agent-account.js'
+import { AI_PROVIDER_IDS, aiLogout, aiStatus, aiUse, type ProviderId, runAiLogin } from '../ai.js'
 import { openBrowser } from '../browser.js'
 import { installGlobalPascalCommand, isNpxInvocation } from '../command-install.js'
 import { collectInfo, runDoctor } from '../diagnostics.js'
@@ -54,6 +55,8 @@ USAGE:
   pascal project resume [id-or-name]
   pascal agent claim [--no-open] [--json]
   pascal agent status [--json]
+  pascal ai login <provider> [--api-key <key>] [--no-open] [--json]
+  pascal ai logout | use | status
   pascal mcp connect | status | config | setup <client>
   pascal plugin list [--json]
 
@@ -86,6 +89,27 @@ dynamic loopback port without exposing Pascal's private local token.
 Documentation: https://editor.pascal.app/docs/developers/mcp
 `
 
+const AI_HELP = `Pascal ai — connect an AI provider for the vision and generation tools
+
+USAGE:
+  pascal ai login <provider> [--api-key <key>] [--no-open] [--json]
+  pascal ai use <provider>
+  pascal ai logout <provider>
+  pascal ai status [--json]
+  pascal ai list [--json]
+
+Providers: anthropic (Claude), openai (ChatGPT), google (Gemini / Antigravity)
+
+Each provider takes an API key, or a subscription sign-in (the same OAuth flow
+the provider's own CLI uses — your Claude/ChatGPT/Google subscription then
+powers Pascal's image analysis and walkthrough reconstruction). Credentials
+live in ~/.pascal/auth.json (mode 0600); the environment variables
+ANTHROPIC_API_KEY, OPENAI_API_KEY and GEMINI_API_KEY work without a login.
+
+"pascal ai use <provider>" selects which configured provider the tools call;
+without a selection the first configured provider is used.
+`
+
 const AGENT_HELP = `Pascal agent — connect an autonomous agent to a person
 
 USAGE:
@@ -115,7 +139,15 @@ async function main(): Promise<void> {
   if (command === '--version' || command === '-v') return print(version)
   if (command === '--help' || command === '-h' || command === 'help') return print(HELP)
   if (args.includes('--help') || args.includes('-h')) {
-    return print(command === 'mcp' ? MCP_HELP : command === 'agent' ? AGENT_HELP : HELP)
+    return print(
+      command === 'mcp'
+        ? MCP_HELP
+        : command === 'agent'
+          ? AGENT_HELP
+          : command === 'ai'
+            ? AI_HELP
+            : HELP,
+    )
   }
 
   switch (command) {
@@ -147,6 +179,8 @@ async function main(): Promise<void> {
       return runProject(args)
     case 'agent':
       return runAgent(args, agentApiKey)
+    case 'ai':
+      return runAi(args)
     case 'plugin':
       return runPlugin(args)
     case 'mcp':
@@ -727,6 +761,84 @@ async function runAgent(args: string[], apiKey: string | undefined): Promise<voi
       '',
       'Claiming links accountability. It does not transfer project ownership or grant access to private projects.',
     ].join('\n'),
+  )
+}
+
+async function runAi(args: string[]): Promise<void> {
+  const [subcommand, ...rest] = args
+  if (subcommand === 'status' || subcommand === 'list') {
+    const json = booleanOption(rest, 'json')
+    const status = aiStatus(paths)
+    output(
+      json,
+      status,
+      [
+        ...status.providers.map(
+          (p) =>
+            `${p.selected ? '*' : ' '} ${p.id.padEnd(10)} ${p.configured ? p.kind : 'not connected'}${p.expired ? ' (expired)' : ''}`,
+        ),
+        '',
+        status.selected
+          ? `Selected: ${status.selected}`
+          : 'No provider selected — the first configured one is used.',
+        'Connect: pascal ai login <provider> [--api-key <key>]',
+      ].join('\n'),
+    )
+    return
+  }
+  const providerId = rest[0]
+  if (!AI_PROVIDER_IDS.includes(providerId as ProviderId)) {
+    throw new CliError(
+      'invalid_provider',
+      `Provider must be one of: ${AI_PROVIDER_IDS.join(', ')} — usage: pascal ai ${subcommand ?? 'login'} <provider>.`,
+      undefined,
+      2,
+    )
+  }
+  const provider = providerId as ProviderId
+  if (subcommand === 'logout') {
+    const removed = aiLogout(provider, paths)
+    output(
+      false,
+      undefined,
+      removed ? `${provider} disconnected.` : `${provider} was not connected.`,
+    )
+    return
+  }
+  if (subcommand === 'use') {
+    aiUse(provider, paths)
+    output(false, undefined, `Provider selected: ${provider}`)
+    return
+  }
+  if (subcommand === 'login') {
+    const { values } = parseArgs({
+      args: rest.slice(1),
+      strict: true,
+      options: {
+        'api-key': { type: 'string' },
+        'no-open': { type: 'boolean', default: false },
+        json: { type: 'boolean', default: false },
+      },
+    })
+    const result = await runAiLogin(provider, {
+      paths,
+      apiKey: values['api-key'],
+      noOpen: values['no-open'],
+    })
+    output(
+      values.json,
+      result,
+      result.kind === 'api_key'
+        ? `${provider} API key saved. Selected provider: ${provider}`
+        : `Signed in with ${provider}. Selected provider: ${provider}`,
+    )
+    return
+  }
+  throw new CliError(
+    'unknown_command',
+    'Use "pascal ai login <provider>", "pascal ai use <provider>", "pascal ai logout <provider>", or "pascal ai status".',
+    undefined,
+    2,
   )
 }
 

@@ -7,6 +7,7 @@ import { registerResources } from './resources'
 import type { SceneStore } from './storage/types'
 import { registerTools } from './tools'
 import type { GeometryScriptHost } from './tools/add-object'
+import { registerAiProviderTools } from './tools/ai-providers'
 import { registerHostedServiceTools } from './tools/hosted-services'
 import { normalizeToolSchemaDialect } from './tools/normalize-schema-dialect'
 import { registerVisionTools } from './tools/vision'
@@ -49,6 +50,7 @@ export function createPascalMcpServer(opts: CreatePascalMcpServerOptions): McpSe
     opts.operations ?? createSceneOperations({ bridge: opts.bridge, store: opts.store })
   registerTools(server, operations, opts.geometryScripts)
   registerVisionTools(server, operations)
+  registerAiProviderTools(server)
   if (opts.services) registerHostedServiceTools(server, opts.services)
   registerResources(server, operations)
   registerPrompts(server, operations)

@@ -28,6 +28,7 @@ const TOOL_POLICIES = [
       'get_scene',
       'get_walls',
       'get_zones',
+      'list_ai_providers',
       'list_levels',
       'list_scenes',
       'list_templates',
