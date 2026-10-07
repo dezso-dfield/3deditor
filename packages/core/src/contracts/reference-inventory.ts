@@ -960,6 +960,7 @@ export const METADATA_NON_REFERENCES: readonly { path: string; reason: string }[
     'roomName',
     'roomType',
     'mcpTool',
+    'note',
   ]),
   ...described('Vision-pipeline provenance: a detected label and a score, not ids.', [
     'visionLabel',

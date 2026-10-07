@@ -53,6 +53,9 @@ const ROOM_TYPES = [
   'entry',
   'laundry',
   'storage',
+  'kids',
+  'gym',
+  'game',
 ] as const
 
 // Room-use keywords → a furnish_room layout, used when roomType is omitted and
@@ -67,6 +70,9 @@ const ROOM_TYPE_KEYWORDS: [RegExp, (typeof ROOM_TYPES)[number]][] = [
   [/hall|corridor|passage|landing/i, 'hallway'],
   [/entry|foyer|mudroom|vestibule/i, 'entry'],
   [/laundry|utility|wash/i, 'laundry'],
+  [/kid|child|nursery|playroom|toddler/i, 'kids'],
+  [/gym|fitness|workout|exercise|training/i, 'gym'],
+  [/game|play|hobby|leisure|pool.?table|billiard|entertainment|rec.?room|media.?room/i, 'game'],
   [/storage|store|closet|pantry|garage|shed|archive/i, 'storage'],
 ]
 
@@ -428,6 +434,49 @@ function buildRoomPlacements(
     case 'storage':
       addBack('closet', 0.6)
       break
+    case 'kids': {
+      addBack('bunkbed', 0.65)
+      if (Math.min(bounds.width, bounds.depth) >= 2.6) addSide('rectangular-carpet', 1.1)
+      placements.push({
+        assetId: 'car-toy',
+        x: bounds.centerX,
+        z: bounds.centerZ,
+        rotationDeg: (Math.atan2(inX, inZ) * 180) / Math.PI,
+      })
+      if (area >= 8) addSide('easel', 0.7, sideAlongLen * 0.2)
+      if (area >= 10) addSide('closet', 0.6, -sideAlongLen * 0.22)
+      break
+    }
+    case 'gym': {
+      // Treadmill's front faces the room; its needed clearance sits behind it.
+      addBack('threadmill', 1.35)
+      addSide('exercise-bike', 0.85, -sideAlongLen * 0.2)
+      if (area >= 9) addSide('barbell-stand', 1.0, sideAlongLen * 0.25)
+      if (area >= 9)
+        placements.push({
+          assetId: 'barbell',
+          x: bounds.centerX,
+          z: bounds.centerZ + 0.5,
+          rotationDeg: facingRot + 90,
+        })
+      break
+    }
+    case 'game': {
+      if (Math.min(bounds.width, bounds.depth) >= 3.6)
+        placements.push({
+          assetId: 'pool-table',
+          x: bounds.centerX,
+          z: bounds.centerZ,
+        })
+      else addBack('pool-table', 2.0)
+      addSide('lounge-chair', 0.8, -sideAlongLen * 0.25)
+      if (area >= 12) {
+        addSide('stereo-speaker', 0.5, sideAlongLen * 0.32)
+        addSide('stereo-speaker', 0.5, -sideAlongLen * 0.32)
+      }
+      if (area >= 14) addBack('suspended-fireplace', 0.6, alongLen / 2 - 1.0)
+      break
+    }
   }
 
   return { placements, bounds }

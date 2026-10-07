@@ -123,6 +123,7 @@ const TOOL_POLICIES = [
       'delete_scene',
       'get_project_status',
       'load_scene',
+      'improve_layout',
       'orient_item',
       'redo',
       'rename_scene',
