@@ -114,6 +114,7 @@ const TOOL_POLICIES = [
       'remove_floor_opening',
       'rebase_floor_reference',
       'delete_zone',
+      'design_room',
       'divide_zone',
       'duplicate_zone',
       'move_zone',
